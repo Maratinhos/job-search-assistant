@@ -6,7 +6,7 @@ from .resume import MAIN_MENU
 from bot import messages
 from db import crud
 from db.database import get_db
-from ai.client import ai_client
+from ai.client import get_ai_client
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,9 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             logger.error(f"Файл резюме или вакансии не найден для пользователя {chat_id}.")
             await query.message.reply_text(text=messages.ERROR_MESSAGE)
             return MAIN_MENU
+
+        # Получаем клиент AI
+        ai_client = get_ai_client()
 
         # Вызов AI и логирование
         response = {}
