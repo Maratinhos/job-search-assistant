@@ -15,6 +15,7 @@ from ai.client import ai_client
 from scraper.hh_scraper import scrape_hh_url
 from bot.file_utils import save_text_to_file
 
+
 logger = logging.getLogger(__name__)
 
 
