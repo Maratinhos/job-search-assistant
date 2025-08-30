@@ -12,6 +12,7 @@ from db import crud
 from bot import messages, keyboards
 from ai.client import ai_client
 from scraper.hh_scraper import scrape_hh_url
+from .file_utils import save_text_to_file
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
     AWAITING_VACANCY_UPLOAD,
     MAIN_MENU
 ) = range(3)
+
 
 # --- Вспомогательная функция для обработки текста резюме ---
 async def process_resume_text(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, source: str) -> int:
@@ -32,21 +34,40 @@ async def process_resume_text(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await message.reply_text(messages.RESUME_PROCESSING)
 
-    # 1. Валидация текста с помощью AI
-    if not ai_client.verify_resume(text):
-        await message.reply_text(messages.RESUME_VERIFICATION_FAILED)
-        await message.reply_text(messages.ASK_FOR_RESUME, reply_markup=keyboards.cancel_keyboard())
-        return AWAITING_RESUME_UPLOAD  # Остаемся в том же состоянии
-
-    # 2. Сохранение резюме в БД
     db_session_gen = get_db()
     db = next(db_session_gen)
     try:
         user = crud.get_or_create_user(db, chat_id=chat_id)
-        crud.create_resume(db, user_id=user.id, text=text, source=source)
+
+        # 1. Валидация текста с помощью AI
+        response = ai_client.verify_resume(text)
+
+        # 2. Логирование использования AI
+        usage = response.get("usage", {})
+        crud.create_ai_usage_log(
+            db,
+            user_id=user.id,
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+            total_tokens=usage.get("total_tokens", 0),
+        )
+
+        if "да" not in response.get("text", "").lower():
+            await message.reply_text(messages.RESUME_VERIFICATION_FAILED)
+            await message.reply_text(messages.ASK_FOR_RESUME, reply_markup=keyboards.cancel_keyboard())
+            return AWAITING_RESUME_UPLOAD
+
+        # 3. Сохранение файла
+        file_path = save_text_to_file(text, "resumes")
+        if not file_path:
+            await message.reply_text(messages.ERROR_MESSAGE)
+            return AWAITING_RESUME_UPLOAD
+
+        # 4. Сохранение резюме в БД
+        crud.create_resume(db, user_id=user.id, file_path=file_path, source=source)
         await message.reply_text(messages.RESUME_UPLOADED_SUCCESS)
 
-        # 3. Переход к следующему шагу - загрузке вакансии
+        # 5. Переход к следующему шагу - загрузке вакансии
         await message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard())
         return AWAITING_VACANCY_UPLOAD
     finally:

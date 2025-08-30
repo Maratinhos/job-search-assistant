@@ -16,7 +16,6 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     Общий обработчик для всех действий анализа из главного меню.
     """
     query = update.callback_query
-    # Немедленно отвечаем на callback, чтобы кнопка перестала "грузиться"
     await query.answer()
 
     chat_id = update.effective_chat.id
@@ -24,11 +23,8 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 
     if not vacancy_id:
         await query.message.reply_text(text=messages.CHOOSE_VACANCY_FOR_ACTION)
-        # В идеале, здесь нужно снова показать клавиатуру выбора вакансий,
-        # но для простоты пока ограничимся сообщением.
         return MAIN_MENU
 
-    # Сообщаем пользователю, что начали обработку
     await query.message.reply_text(text="⏳ Выполняю ваш запрос... Это может занять некоторое время.")
 
     db_session_gen = get_db()
@@ -42,25 +38,47 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             await query.message.reply_text(text=messages.ERROR_MESSAGE)
             return MAIN_MENU
 
-        # Вызываем соответствующий метод AI клиента в зависимости от действия
-        response_text = ""
+        # Чтение текстов из файлов
+        try:
+            with open(resume.file_path, 'r', encoding='utf-8') as f:
+                resume_text = f.read()
+            with open(vacancy.file_path, 'r', encoding='utf-8') as f:
+                vacancy_text = f.read()
+        except FileNotFoundError:
+            logger.error(f"Файл резюме или вакансии не найден для пользователя {chat_id}.")
+            await query.message.reply_text(text=messages.ERROR_MESSAGE)
+            return MAIN_MENU
+
+        # Вызов AI и логирование
+        response = {}
         header = ""
         if action == "analyze_match":
             header = messages.ANALYSIS_COMPLETE
-            response_text = ai_client.analyze_match(resume.text, vacancy.text)
+            response = ai_client.analyze_match(resume_text, vacancy_text)
         elif action == "generate_letter":
             header = messages.COVER_LETTER_COMPLETE
-            response_text = ai_client.generate_cover_letter(resume.text, vacancy.text)
+            response = ai_client.generate_cover_letter(resume_text, vacancy_text)
         elif action == "generate_hr_plan":
             header = messages.HR_CALL_PLAN_COMPLETE
-            response_text = ai_client.generate_hr_call_plan(resume.text, vacancy.text)
+            response = ai_client.generate_hr_call_plan(resume_text, vacancy_text)
         elif action == "generate_tech_plan":
             header = messages.TECH_INTERVIEW_PLAN_COMPLETE
-            response_text = ai_client.generate_tech_interview_plan(resume.text, vacancy.text)
+            response = ai_client.generate_tech_interview_plan(resume_text, vacancy_text)
         else:
             await query.message.reply_text(text=messages.NOT_IMPLEMENTED)
             return MAIN_MENU
 
+        # Логирование использования AI
+        usage = response.get("usage", {})
+        crud.create_ai_usage_log(
+            db,
+            user_id=user.id,
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+            total_tokens=usage.get("total_tokens", 0),
+        )
+
+        response_text = response.get("text", "Не удалось получить ответ от AI.")
         await query.message.reply_text(text=f"{header}\n\n{response_text}")
 
     except Exception as e:
@@ -69,7 +87,6 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     finally:
         db.close()
 
-    # Остаемся в главном меню для выполнения других действий
     return MAIN_MENU
 
 # Создаем обработчики для каждой кнопки, используя лямбда-функцию для передачи названия действия
