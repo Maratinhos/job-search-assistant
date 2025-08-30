@@ -75,6 +75,7 @@ def create_application() -> Application:
         fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel_action$")],
         per_user=True,
         per_chat=True,
+        per_message=True,
         allow_reentry=True # Позволяет повторно входить в диалог с помощью /start
     )
 

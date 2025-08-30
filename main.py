@@ -32,5 +32,11 @@ async def main():
 if __name__ == "__main__":
     # На Windows может потребоваться другая политика событий для корректной работы asyncio
     if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    asyncio.run(main())
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Получен сигнал остановки от пользователя")
+    except Exception as e:
+        logger.critical(f"Критическая ошибка в main: {e}", exc_info=True)
