@@ -3,7 +3,7 @@ from db.models import Vacancy
 from typing import List
 
 # --- Main Menu Keyboards ---
-def main_menu_keyboard(vacancy_count: int) -> InlineKeyboardMarkup:
+def main_menu_keyboard(vacancy_count: int, has_resume: bool) -> InlineKeyboardMarkup:
     """Генерирует клавиатуру для главного меню."""
     buttons = [
         [InlineKeyboardButton("Анализ резюме/вакансии", callback_data="analyze_match")],
@@ -15,6 +15,9 @@ def main_menu_keyboard(vacancy_count: int) -> InlineKeyboardMarkup:
         buttons.append([InlineKeyboardButton(f"Выбрать другую вакансию ({vacancy_count})", callback_data="select_vacancy")])
 
     buttons.append([InlineKeyboardButton("Загрузить новую вакансию", callback_data="upload_vacancy")])
+    if has_resume:
+        buttons.append([InlineKeyboardButton("Обновить резюме", callback_data="update_resume")])
+
     return InlineKeyboardMarkup(buttons)
 
 # --- Vacancy Selection Keyboard ---
