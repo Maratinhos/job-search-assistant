@@ -11,7 +11,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def main():
+async def main():
     """Основная функция для запуска бота."""
     try:
         logger.info("Инициализация базы данных...")
@@ -19,8 +19,8 @@ def main():
         logger.info("База данных инициализирована.")
 
         logger.info("Запуск бота...")
-        # Используем asyncio.run() для запуска асинхронной функции run_bot
-        asyncio.run(run_bot())
+        # Используем await для запуска асинхронной функции run_bot
+        await run_bot()
 
     except Exception as e:
         logger.critical(f"Произошла критическая ошибка на верхнем уровне: {e}", exc_info=True)
@@ -29,4 +29,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
