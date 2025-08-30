@@ -1,4 +1,5 @@
 import logging
+import json
 from telegram import Update
 from telegram.ext import (
     ContextTypes,
@@ -41,10 +42,10 @@ async def process_resume_text(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         # 1. Валидация текста с помощью AI
         ai_client = get_ai_client()
-        response = ai_client.verify_resume(text)
+        response_data = ai_client.verify_resume(text)
 
         # 2. Логирование использования AI
-        usage = response.get("usage", {})
+        usage = response_data.get("usage", {})
         crud.create_ai_usage_log(
             db,
             user_id=user.id,
@@ -53,7 +54,25 @@ async def process_resume_text(update: Update, context: ContextTypes.DEFAULT_TYPE
             total_tokens=usage.get("total_tokens", 0),
         )
 
-        if "да" not in response.get("text", "").lower():
+        try:
+            # Очистка и парсинг JSON из ответа AI
+            response_text = response_data.get("text", "{}").strip()
+            # Иногда AI возвращает JSON в тройных кавычках, убираем их
+            if response_text.startswith("```json"):
+                response_text = response_text[7:-4].strip()
+            elif response_text.startswith("```"):
+                response_text = response_text[3:-3].strip()
+
+            response_json = json.loads(response_text)
+            is_resume = response_json.get("is_resume", False)
+            resume_title = response_json.get("title")
+        except (json.JSONDecodeError, AttributeError):
+            is_resume = False
+            resume_title = None
+            logger.error(f"Failed to parse AI response: {response_data.get('text')}")
+
+
+        if not is_resume:
             await message.reply_text(messages.RESUME_VERIFICATION_FAILED)
             await message.reply_text(messages.ASK_FOR_RESUME, reply_markup=keyboards.cancel_keyboard())
             return AWAITING_RESUME_UPLOAD
@@ -65,7 +84,7 @@ async def process_resume_text(update: Update, context: ContextTypes.DEFAULT_TYPE
             return AWAITING_RESUME_UPLOAD
 
         # 4. Сохранение резюме в БД
-        crud.create_resume(db, user_id=user.id, file_path=file_path, source=source)
+        crud.create_resume(db, user_id=user.id, file_path=file_path, source=source, title=resume_title)
         await message.reply_text(messages.RESUME_UPLOADED_SUCCESS)
 
         # 5. Переход к следующему шагу - загрузке вакансии

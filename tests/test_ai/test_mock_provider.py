@@ -11,7 +11,7 @@ def test_mock_provider_responses():
     # Test resume verification
     resume_prompt = prompts.VERIFY_RESUME_PROMPT.format(text="some text")
     response = provider._get_completion(resume_prompt)
-    assert response["text"] == "да"
+    assert response["text"] == '{"is_resume": true, "title": "Mock Resume Title"}'
 
     # Test vacancy verification
     vacancy_prompt = prompts.VERIFY_VACANCY_PROMPT.format(text="some text")

@@ -35,7 +35,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         # 2. Если есть резюме, но нет вакансий
         vacancies = crud.get_user_vacancies(db, user_id=user.id)
         if not vacancies:
-            await update.message.reply_text(messages.MAIN_MENU_NO_VACANCIES)
+            await update.message.reply_text(
+                messages.MAIN_MENU_NO_VACANCIES.format(resume_title=resume.title),
+            )
             await update.message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard())
             return AWAITING_VACANCY_UPLOAD
 
@@ -45,7 +47,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         context.user_data['selected_vacancy_id'] = vacancies[0].id
 
         await update.message.reply_text(
-            messages.MAIN_MENU_MESSAGE.format(vacancy_count=vacancy_count),
+            messages.MAIN_MENU_MESSAGE.format(resume_title=resume.title, vacancy_count=vacancy_count),
             reply_markup=keyboards.main_menu_keyboard(vacancy_count)
         )
         return MAIN_MENU

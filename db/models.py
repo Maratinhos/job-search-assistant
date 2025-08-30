@@ -38,11 +38,12 @@ class Resume(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     file_path = Column(String(255), nullable=False)
     source = Column(String(255), nullable=True)  # e.g., 'hh.ru', 'file.txt'
+    title = Column(String(255), nullable=True)
 
     user = relationship("User", back_populates="resumes")
 
     def __repr__(self):
-        return f"<Resume(id={self.id}, user_id={self.user_id})>"
+        return f"<Resume(id={self.id}, user_id={self.user_id}, title='{self.title}')>"
 
 
 class Vacancy(Base):

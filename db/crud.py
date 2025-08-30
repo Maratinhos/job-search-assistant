@@ -37,7 +37,7 @@ def get_user_resume(db: Session, user_id: int) -> Optional[models.Resume]:
     return db.query(models.Resume).filter(models.Resume.user_id == user_id).first()
 
 
-def create_resume(db: Session, user_id: int, file_path: str, source: str) -> models.Resume:
+def create_resume(db: Session, user_id: int, file_path: str, source: str, title: str) -> models.Resume:
     """Создает или обновляет резюме пользователя."""
     # У пользователя может быть только одно резюме, поэтому удаляем старое, если оно есть
     existing_resume = get_user_resume(db, user_id)
@@ -45,7 +45,7 @@ def create_resume(db: Session, user_id: int, file_path: str, source: str) -> mod
         db.delete(existing_resume)
         db.commit()
 
-    new_resume = models.Resume(user_id=user_id, file_path=file_path, source=source)
+    new_resume = models.Resume(user_id=user_id, file_path=file_path, source=source, title=title)
     db.add(new_resume)
     db.commit()
     db.refresh(new_resume)
