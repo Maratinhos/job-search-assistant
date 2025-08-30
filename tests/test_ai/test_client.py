@@ -12,15 +12,30 @@ def mock_ai_provider(monkeypatch):
     """
     monkeypatch.setattr("ai.client.AIProvider", MockProvider)
 
+import json
+
 def test_verify_resume_returns_mock_response():
     """
-    Тестирует, что `verify_resume` возвращает корректный ответ от `MockProvider`.
+    Тестирует, что `verify_resume` возвращает корректный JSON-ответ от `MockProvider`.
     """
     client = AIClient()
     response = client.verify_resume("some resume text")
 
-    # Проверяем, что ответ соответствует тому, что должен вернуть MockProvider
-    assert response["text"] == "да"
+    # Проверяем, что ответ является валидным JSON
+    try:
+        data = json.loads(response["text"])
+    except json.JSONDecodeError:
+        pytest.fail("Ответ от AI не является валидным JSON")
+
+    # Проверяем структуру и содержимое JSON
+    assert "is_resume" in data
+    assert isinstance(data["is_resume"], bool)
+    assert data["is_resume"] is True
+    assert "title" in data
+    assert isinstance(data["title"], str)
+    assert data["title"] == "Mock Resume Title"
+
+    # Проверяем наличие статистики
     assert "usage" in response
     assert response["usage"]["total_tokens"] > 0
 

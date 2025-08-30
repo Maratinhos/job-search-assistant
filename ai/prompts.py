@@ -1,9 +1,13 @@
 # ai/prompts.py
 
+# ai/prompts.py
+
 # Prompt to verify if a text is a resume
 VERIFY_RESUME_PROMPT = """
 Проверь, является ли следующий текст резюме.
-Ответь 'да' или 'нет'.
+Ответь в формате JSON с двумя ключами:
+- "is_resume": boolean (true, если это резюме, иначе false)
+- "title": string (краткое название резюме, например "Senior BI Analyst" или "Junior Frontend Developer", если это резюме, иначе null)
 
 Текст:
 ---

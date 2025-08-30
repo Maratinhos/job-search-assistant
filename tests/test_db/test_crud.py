@@ -18,16 +18,19 @@ def test_create_resume(db_session):
     user = crud.get_or_create_user(db_session, chat_id=123)
 
     # 1. Создание первого резюме
-    resume1 = crud.create_resume(db_session, user_id=user.id, file_path="/path/to/resume1.txt", source="file1.txt")
+    resume1 = crud.create_resume(db_session, user_id=user.id, file_path="/path/to/resume1.txt", source="file1.txt", title="Resume 1")
     assert resume1.file_path == "/path/to/resume1.txt"
+    assert resume1.title == "Resume 1"
 
     retrieved_resume = crud.get_user_resume(db_session, user_id=user.id)
     assert retrieved_resume is not None
     assert retrieved_resume.id == resume1.id
+    assert retrieved_resume.title == "Resume 1"
 
     # 2. Создание второго резюме (должно заменить первое)
-    resume2 = crud.create_resume(db_session, user_id=user.id, file_path="/path/to/resume2.txt", source="file2.txt")
+    resume2 = crud.create_resume(db_session, user_id=user.id, file_path="/path/to/resume2.txt", source="file2.txt", title="Resume 2")
     assert resume2.file_path == "/path/to/resume2.txt"
+    assert resume2.title == "Resume 2"
 
     retrieved_resume_after_update = crud.get_user_resume(db_session, user_id=user.id)
     assert retrieved_resume_after_update is not None
