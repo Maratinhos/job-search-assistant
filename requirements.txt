@@ -1,6 +1,7 @@
 python-telegram-bot[job-queue]
 python-dotenv
 SQLAlchemy
+alembic
 openai
 beautifulsoup4
 pytest
