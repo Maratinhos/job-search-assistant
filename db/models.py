@@ -5,8 +5,10 @@ from sqlalchemy import (
     Text,
     ForeignKey,
     BigInteger,
+    DateTime,
 )
 from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.sql import func
 
 Base = declarative_base()
 
@@ -21,6 +23,7 @@ class User(Base):
 
     resumes = relationship("Resume", back_populates="user", cascade="all, delete-orphan")
     vacancies = relationship("Vacancy", back_populates="user", cascade="all, delete-orphan")
+    ai_usage_logs = relationship("AIUsageLog", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(id={self.id}, chat_id={self.chat_id})>"
@@ -33,7 +36,7 @@ class Resume(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    text = Column(Text, nullable=False)
+    file_path = Column(String(255), nullable=False)
     source = Column(String(255), nullable=True)  # e.g., 'hh.ru', 'file.txt'
 
     user = relationship("User", back_populates="resumes")
@@ -50,10 +53,28 @@ class Vacancy(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String(255), nullable=False)  # A name for the vacancy
-    text = Column(Text, nullable=False)
+    file_path = Column(String(255), nullable=False)
     source = Column(String(255), nullable=True)
 
     user = relationship("User", back_populates="vacancies")
 
     def __repr__(self):
         return f"<Vacancy(id={self.id}, name='{self.name}', user_id={self.user_id})>"
+
+
+class AIUsageLog(Base):
+    """Модель для логирования использования AI."""
+
+    __tablename__ = "ai_usage_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    prompt_tokens = Column(Integer, nullable=False)
+    completion_tokens = Column(Integer, nullable=False)
+    total_tokens = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="ai_usage_logs")
+
+    def __repr__(self):
+        return f"<AIUsageLog(id={self.id}, user_id={self.user_id}, total_tokens={self.total_tokens})>"

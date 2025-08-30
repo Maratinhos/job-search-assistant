@@ -13,8 +13,10 @@ from db import crud
 from db.database import get_db
 from ai.client import ai_client
 from scraper.hh_scraper import scrape_hh_url
+from .file_utils import save_text_to_file
 
 logger = logging.getLogger(__name__)
+
 
 async def process_vacancy_text(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, source: str) -> int:
     """
@@ -25,34 +27,53 @@ async def process_vacancy_text(update: Update, context: ContextTypes.DEFAULT_TYP
 
     await message.reply_text(messages.VACANCY_PROCESSING)
 
-    # 1. Валидация текста с помощью AI
-    if not ai_client.verify_vacancy(text):
-        await message.reply_text(messages.VACANCY_VERIFICATION_FAILED)
-        await message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard())
-        return AWAITING_VACANCY_UPLOAD
-
-    # 2. Извлечение названия вакансии (первая непустая строка)
-    try:
-        first_line = next(line for line in text.split('\n') if line.strip())
-        vacancy_name = first_line.strip()
-    except StopIteration:
-        vacancy_name = "Новая вакансия"
-
-    vacancy_name = vacancy_name[:250]  # Обрезаем до длины поля в БД
-
-    # 3. Сохранение вакансии в БД
     db_session_gen = get_db()
     db = next(db_session_gen)
     try:
         user = crud.get_or_create_user(db, chat_id=chat_id)
-        vacancy = crud.create_vacancy(db, user_id=user.id, name=vacancy_name, text=text, source=source)
+
+        # 1. Валидация текста с помощью AI
+        response = ai_client.verify_vacancy(text)
+
+        # 2. Логирование использования AI
+        usage = response.get("usage", {})
+        crud.create_ai_usage_log(
+            db,
+            user_id=user.id,
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+            total_tokens=usage.get("total_tokens", 0),
+        )
+
+        if "да" not in response.get("text", "").lower():
+            await message.reply_text(messages.VACANCY_VERIFICATION_FAILED)
+            await message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard())
+            return AWAITING_VACANCY_UPLOAD
+
+        # 3. Извлечение названия вакансии (первая непустая строка)
+        try:
+            first_line = next(line for line in text.split('\n') if line.strip())
+            vacancy_name = first_line.strip()
+        except StopIteration:
+            vacancy_name = "Новая вакансия"
+
+        vacancy_name = vacancy_name[:250]  # Обрезаем до длины поля в БД
+
+        # 4. Сохранение файла
+        file_path = save_text_to_file(text, "vacancies")
+        if not file_path:
+            await message.reply_text(messages.ERROR_MESSAGE)
+            return AWAITING_VACANCY_UPLOAD
+
+        # 5. Сохранение вакансии в БД
+        vacancy = crud.create_vacancy(db, user_id=user.id, name=vacancy_name, file_path=file_path, source=source)
 
         # Сохраняем ID новой вакансии как выбранной по умолчанию
         context.user_data['selected_vacancy_id'] = vacancy.id
 
         await message.reply_text(messages.VACANCY_UPLOADED_SUCCESS)
 
-        # 4. Переход в главное меню
+        # 6. Переход в главное меню
         vacancies = crud.get_user_vacancies(db, user_id=user.id)
         await message.reply_text(
             messages.MAIN_MENU_MESSAGE.format(vacancy_count=len(vacancies)),
