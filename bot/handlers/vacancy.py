@@ -11,7 +11,7 @@ from .resume import MAIN_MENU, AWAITING_VACANCY_UPLOAD
 from bot import messages, keyboards
 from db import crud
 from db.database import get_db
-from ai.client import ai_client
+from ai.client import get_ai_client
 from scraper.hh_scraper import scrape_hh_url
 from bot.file_utils import save_text_to_file
 
@@ -33,6 +33,7 @@ async def process_vacancy_text(update: Update, context: ContextTypes.DEFAULT_TYP
         user = crud.get_or_create_user(db, chat_id=chat_id)
 
         # 1. Валидация текста с помощью AI
+        ai_client = get_ai_client()
         response = ai_client.verify_vacancy(text)
 
         # 2. Логирование использования AI

@@ -10,7 +10,7 @@ from telegram.ext import (
 from db.database import get_db
 from db import crud
 from bot import messages, keyboards
-from ai.client import ai_client
+from ai.client import get_ai_client
 from scraper.hh_scraper import scrape_hh_url
 from bot.file_utils import save_text_to_file
 
@@ -40,6 +40,7 @@ async def process_resume_text(update: Update, context: ContextTypes.DEFAULT_TYPE
         user = crud.get_or_create_user(db, chat_id=chat_id)
 
         # 1. Валидация текста с помощью AI
+        ai_client = get_ai_client()
         response = ai_client.verify_resume(text)
 
         # 2. Логирование использования AI

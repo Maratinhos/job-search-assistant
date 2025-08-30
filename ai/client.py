@@ -1,9 +1,9 @@
-from .providers.openai import OpenAIProvider
+from .providers.gen_api import GenApiProvider
 from . import prompts
 
 # Здесь можно легко переключить провайдера, изменив одну строку
-# from .providers.another_provider import AnotherProvider as AIProvider
-AIProvider = OpenAIProvider
+# from .providers.openai import OpenAIProvider
+AIProvider = GenApiProvider
 
 
 class AIClient:
@@ -57,5 +57,16 @@ class AIClient:
         )
 
 
-# Создаем единственный экземпляр клиента, который будет использоваться во всем приложении
-ai_client = AIClient()
+# Глобальная переменная для хранения синглтон-экземпляра
+_ai_client_instance = None
+
+
+def get_ai_client():
+    """
+    Возвращает синглтон-экземпляр AIClient.
+    Создает экземпляр при первом вызове.
+    """
+    global _ai_client_instance
+    if _ai_client_instance is None:
+        _ai_client_instance = AIClient()
+    return _ai_client_instance

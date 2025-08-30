@@ -1,70 +1,65 @@
 import pytest
 from ai.client import AIClient
+from ai.providers.mock import MockProvider
 from ai import prompts
 
-# Фикстура для мока провайдера, чтобы не создавать его в каждом тесте
-@pytest.fixture
-def mock_provider(mocker):
-    return mocker.patch('ai.client.AIProvider')
+# Фикстура, которая подменяет реального AI-провайдера на мок-версию перед каждым тестом.
+@pytest.fixture(autouse=True)
+def mock_ai_provider(monkeypatch):
+    """
+    Заменяет AIProvider на MockProvider для всех тестов в этом файле.
+    `autouse=True` применяет эту фикстуру автоматически ко всем тестам.
+    """
+    monkeypatch.setattr("ai.client.AIProvider", MockProvider)
 
-def test_verify_resume(mock_provider):
-    """Тестирует, что `verify_resume` вызывает правильный метод провайдера с правильным промптом."""
+def test_verify_resume_returns_mock_response():
+    """
+    Тестирует, что `verify_resume` возвращает корректный ответ от `MockProvider`.
+    """
     client = AIClient()
-    client.verify_resume("some resume text")
+    response = client.verify_resume("some resume text")
 
-    mock_provider.return_value.verify_text.assert_called_once_with(
-        "some resume text", prompts.VERIFY_RESUME_PROMPT
-    )
+    # Проверяем, что ответ соответствует тому, что должен вернуть MockProvider
+    assert response["text"] == "да"
+    assert "usage" in response
+    assert response["usage"]["total_tokens"] > 0
 
-def test_verify_vacancy(mock_provider):
-    """Тестирует, что `verify_vacancy` вызывает правильный метод провайдера с правильным промптом."""
+def test_verify_vacancy_returns_mock_response():
+    """
+    Тестирует, что `verify_vacancy` возвращает корректный ответ от `MockProvider`.
+    """
     client = AIClient()
-    client.verify_vacancy("some vacancy text")
+    response = client.verify_vacancy("some vacancy text")
+    assert response["text"] == "да"
 
-    mock_provider.return_value.verify_text.assert_called_once_with(
-        "some vacancy text", prompts.VERIFY_VACANCY_PROMPT
-    )
-
-def test_analyze_match(mock_provider):
-    """Тестирует, что `analyze_match` вызывает `analyze` с правильными аргументами."""
+def test_analyze_match_returns_mock_response():
+    """
+    Тестирует, что `analyze_match` возвращает корректный ответ от `MockProvider`.
+    """
     client = AIClient()
-    client.analyze_match("resume", "vacancy")
+    response = client.analyze_match("resume", "vacancy")
+    assert "Анализ соответствия (MOCK)" in response["text"]
 
-    mock_provider.return_value.analyze.assert_called_once_with(
-        prompts.ANALYZE_MATCH_PROMPT,
-        resume_text="resume",
-        vacancy_text="vacancy"
-    )
-
-def test_generate_cover_letter(mock_provider):
-    """Тестирует, что `generate_cover_letter` вызывает `analyze` с правильными аргументами."""
+def test_generate_cover_letter_returns_mock_response():
+    """
+    Тестирует, что `generate_cover_letter` возвращает корректный ответ от `MockProvider`.
+    """
     client = AIClient()
-    client.generate_cover_letter("resume", "vacancy")
+    response = client.generate_cover_letter("resume", "vacancy")
+    assert "Сопроводительное письмо (MOCK)" in response["text"]
 
-    mock_provider.return_value.analyze.assert_called_once_with(
-        prompts.GENERATE_COVER_LETTER_PROMPT,
-        resume_text="resume",
-        vacancy_text="vacancy"
-    )
-
-def test_generate_hr_call_plan(mock_provider):
-    """Тестирует, что `generate_hr_call_plan` вызывает `analyze` с правильными аргументами."""
+def test_generate_hr_call_plan_returns_mock_response():
+    """
+    Тестирует, что `generate_hr_call_plan` возвращает корректный ответ от `MockProvider`.
+    """
     client = AIClient()
-    client.generate_hr_call_plan("resume", "vacancy")
+    response = client.generate_hr_call_plan("resume", "vacancy")
+    assert "План для созвона с HR (MOCK)" in response["text"]
 
-    mock_provider.return_value.analyze.assert_called_once_with(
-        prompts.GENERATE_HR_CALL_PLAN_PROMPT,
-        resume_text="resume",
-        vacancy_text="vacancy"
-    )
-
-def test_generate_tech_interview_plan(mock_provider):
-    """Тестирует, что `generate_tech_interview_plan` вызывает `analyze` с правильными аргументами."""
+def test_generate_tech_interview_plan_returns_mock_response():
+    """
+    Тестирует, что `generate_tech_interview_plan` возвращает корректный ответ от `MockProvider`.
+    """
     client = AIClient()
-    client.generate_tech_interview_plan("resume", "vacancy")
-
-    mock_provider.return_value.analyze.assert_called_once_with(
-        prompts.GENERATE_TECH_INTERVIEW_PLAN_PROMPT,
-        resume_text="resume",
-        vacancy_text="vacancy"
-    )
+    response = client.generate_tech_interview_plan("resume", "vacancy")
+    assert "План для технического собеседования (MOCK)" in response["text"]

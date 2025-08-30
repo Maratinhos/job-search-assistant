@@ -11,6 +11,9 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 # Ключ для OpenAI API
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+# Ключ для Gen-API
+GEN_API_KEY = os.getenv("GEN_API_KEY")
+
 # Название файла базы данных
 DB_NAME = "bot_database.sqlite"
 
