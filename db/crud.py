@@ -16,13 +16,28 @@ def get_or_create_user(db: Session, chat_id: int) -> models.User:
     return user
 
 
+# AI Usage Log functions
+def create_ai_usage_log(db: Session, user_id: int, prompt_tokens: int, completion_tokens: int, total_tokens: int) -> models.AIUsageLog:
+    """Создает запись о использовании AI."""
+    new_log = models.AIUsageLog(
+        user_id=user_id,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+    )
+    db.add(new_log)
+    db.commit()
+    db.refresh(new_log)
+    return new_log
+
+
 # Resume functions
 def get_user_resume(db: Session, user_id: int) -> Optional[models.Resume]:
     """Получает резюме пользователя."""
     return db.query(models.Resume).filter(models.Resume.user_id == user_id).first()
 
 
-def create_resume(db: Session, user_id: int, text: str, source: str) -> models.Resume:
+def create_resume(db: Session, user_id: int, file_path: str, source: str) -> models.Resume:
     """Создает или обновляет резюме пользователя."""
     # У пользователя может быть только одно резюме, поэтому удаляем старое, если оно есть
     existing_resume = get_user_resume(db, user_id)
@@ -30,7 +45,7 @@ def create_resume(db: Session, user_id: int, text: str, source: str) -> models.R
         db.delete(existing_resume)
         db.commit()
 
-    new_resume = models.Resume(user_id=user_id, text=text, source=source)
+    new_resume = models.Resume(user_id=user_id, file_path=file_path, source=source)
     db.add(new_resume)
     db.commit()
     db.refresh(new_resume)
@@ -48,9 +63,9 @@ def get_vacancy_by_id(db: Session, vacancy_id: int) -> Optional[models.Vacancy]:
     return db.query(models.Vacancy).filter(models.Vacancy.id == vacancy_id).first()
 
 
-def create_vacancy(db: Session, user_id: int, name: str, text: str, source: str) -> models.Vacancy:
+def create_vacancy(db: Session, user_id: int, name: str, file_path: str, source: str) -> models.Vacancy:
     """Создает новую вакансию для пользователя."""
-    new_vacancy = models.Vacancy(user_id=user_id, name=name, text=text, source=source)
+    new_vacancy = models.Vacancy(user_id=user_id, name=name, file_path=file_path, source=source)
     db.add(new_vacancy)
     db.commit()
     db.refresh(new_vacancy)

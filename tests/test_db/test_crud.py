@@ -18,22 +18,22 @@ def test_create_resume(db_session):
     user = crud.get_or_create_user(db_session, chat_id=123)
 
     # 1. Создание первого резюме
-    resume1 = crud.create_resume(db_session, user_id=user.id, text="Resume text 1", source="file1.txt")
-    assert resume1.text == "Resume text 1"
+    resume1 = crud.create_resume(db_session, user_id=user.id, file_path="/path/to/resume1.txt", source="file1.txt")
+    assert resume1.file_path == "/path/to/resume1.txt"
 
     retrieved_resume = crud.get_user_resume(db_session, user_id=user.id)
     assert retrieved_resume is not None
     assert retrieved_resume.id == resume1.id
 
     # 2. Создание второго резюме (должно заменить первое)
-    resume2 = crud.create_resume(db_session, user_id=user.id, text="Resume text 2", source="file2.txt")
-    assert resume2.text == "Resume text 2"
+    resume2 = crud.create_resume(db_session, user_id=user.id, file_path="/path/to/resume2.txt", source="file2.txt")
+    assert resume2.file_path == "/path/to/resume2.txt"
 
     retrieved_resume_after_update = crud.get_user_resume(db_session, user_id=user.id)
     assert retrieved_resume_after_update is not None
     assert retrieved_resume_after_update.id == resume2.id
     # Эта проверка некорректна для in-memory SQLite, который может переиспользовать ID.
-    # Главное, что контент обновился, что мы уже проверили через resume2.text.
+    # Главное, что контент обновился, что мы уже проверили через resume2.file_path.
     # assert retrieved_resume_after_update.id != resume1.id
 
     # Проверяем, что в БД осталась только одна запись резюме для этого пользователя
@@ -46,10 +46,10 @@ def test_create_and_get_vacancies(db_session):
     user2 = crud.get_or_create_user(db_session, chat_id=456) # Другой пользователь
 
     # 1. Создаем несколько вакансий для user1
-    crud.create_vacancy(db_session, user_id=user1.id, name="Vacancy 1", text="Text 1", source="s1")
-    crud.create_vacancy(db_session, user_id=user1.id, name="Vacancy 2", text="Text 2", source="s2")
+    crud.create_vacancy(db_session, user_id=user1.id, name="Vacancy 1", file_path="/path/to/v1.txt", source="s1")
+    crud.create_vacancy(db_session, user_id=user1.id, name="Vacancy 2", file_path="/path/to/v2.txt", source="s2")
     # И одну для user2
-    crud.create_vacancy(db_session, user_id=user2.id, name="Vacancy 3", text="Text 3", source="s3")
+    crud.create_vacancy(db_session, user_id=user2.id, name="Vacancy 3", file_path="/path/to/v3.txt", source="s3")
 
     # 2. Получаем все вакансии для user1
     vacancies_user1 = crud.get_user_vacancies(db_session, user_id=user1.id)

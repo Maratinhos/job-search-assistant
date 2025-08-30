@@ -22,40 +22,53 @@ class OpenAIProvider:
         # openai.api_key = api_key
         logger.info("Инициализирован OpenAI провайдер (MOCK).")
 
-    def _get_completion(self, prompt: str) -> str:
+    def _get_completion(self, prompt: str) -> dict:
         """
-        Отправляет запрос к API OpenAI и возвращает ответ.
+        Отправляет запрос к API OpenAI и возвращает ответ в виде словаря,
+        включающего текст и информацию о токенах.
         NOTE: This is a mock implementation.
         """
         logger.info(f"Отправка запроса к OpenAI (MOCK). Промпт: {prompt[:150]}...")
 
         # Mock responses based on prompt content
         if "Проверь, является ли следующий текст резюме" in prompt:
-            return "да"
-        if "Проверь, является ли следующий текст описанием вакансии" in prompt:
-            return "да"
-        if "Проанализируй соответствие" in prompt:
-            return "Анализ соответствия (MOCK): Кандидат отлично подходит. Сильные стороны: опыт в Python. Недостатки: нет опыта в Go. Оценка: 95%."
-        if "Напиши сопроводительное письмо" in prompt:
-            return "Сопроводительное письмо (MOCK): Уважаемый HR, я очень заинтересован в этой вакансии и уверен, что мой опыт будет полезен."
-        if "Составь план для созвона с HR" in prompt:
-            return "План для созвона с HR (MOCK):\n1. Представиться и рассказать о своем опыте.\n2. Задать вопросы о компании и команде.\n3. Обсудить ожидания от роли."
-        if "Составь подробный план для технического собеседования" in prompt:
-            return "План для технического собеседования (MOCK):\n1. Вопросы по Python (data structures, algorithms).\n2. Вопросы по базам данных (SQL, NoSQL).\n3. Красные флаги: отсутствие тестов в проектах."
+            text_response = "да"
+        elif "Проверь, является ли следующий текст описанием вакансии" in prompt:
+            text_response = "да"
+        elif "Проанализируй соответствие" in prompt:
+            text_response = "Анализ соответствия (MOCK): Кандидат отлично подходит. Сильные стороны: опыт в Python. Недостатки: нет опыта в Go. Оценка: 95%."
+        elif "Напиши сопроводительное письмо" in prompt:
+            text_response = "Сопроводительное письмо (MOCK): Уважаемый HR, я очень заинтересован в этой вакансии и уверен, что мой опыт будет полезен."
+        elif "Составь план для созвона с HR" in prompt:
+            text_response = "План для созвона с HR (MOCK):\n1. Представиться и рассказать о своем опыте.\n2. Задать вопросы о компании и команде.\n3. Обсудить ожидания от роли."
+        elif "Составь подробный план для технического собеседования" in prompt:
+            text_response = "План для технического собеседования (MOCK):\n1. Вопросы по Python (data structures, algorithms).\n2. Вопросы по базам данных (SQL, NoSQL).\n3. Красные флаги: отсутствие тестов в проектах."
+        else:
+            text_response = "Ответ от OpenAI (MOCK)"
 
-        return "Ответ от OpenAI (MOCK)"
+        # Mock token usage. In a real scenario, this would come from the API response.
+        prompt_tokens = len(prompt.split())
+        completion_tokens = len(text_response.split())
+        usage = {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens,
+        }
 
-    def verify_text(self, text: str, prompt_template: str) -> bool:
+        return {"text": text_response, "usage": usage}
+
+    def verify_text(self, text: str, prompt_template: str) -> dict:
         """
-        Проверяет текст (резюме или вакансия) с помощью простого ответа 'да'/'нет'.
+        Формирует промпт и вызывает AI для верификации.
+        Возвращает полный ответ от AI, включая токен-статистику.
         """
         prompt = prompt_template.format(text=text)
-        response = self._get_completion(prompt)
-        return "да" in response.lower()
+        return self._get_completion(prompt)
 
-    def analyze(self, prompt_template: str, **kwargs) -> str:
+    def analyze(self, prompt_template: str, **kwargs) -> dict:
         """
         Выполняет анализ или генерацию текста на основе шаблона и аргументов.
+        Возвращает полный ответ от AI, включая токен-статистику.
         """
         prompt = prompt_template.format(**kwargs)
         return self._get_completion(prompt)
