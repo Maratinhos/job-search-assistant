@@ -12,7 +12,7 @@ from db import crud
 from bot import messages, keyboards
 from ai.client import ai_client
 from scraper.hh_scraper import scrape_hh_url
-from .file_utils import save_text_to_file
+from bot.file_utils import save_text_to_file
 
 logger = logging.getLogger(__name__)
 
