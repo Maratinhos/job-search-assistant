@@ -11,7 +11,7 @@ class GenApiProvider:
     Класс для взаимодействия с API gen-api.ru.
     """
 
-    API_URL = "https://api.gen-api.ru/api/v1/networks/gpt-5-mini"
+    API_URL = "https://api.gen-api.ru/api/v1/networks/gpt-5"
 
     def __init__(self, api_key: str = GEN_API_KEY):
         if not api_key:
