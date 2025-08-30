@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import sys
 
 from bot.bot import main as run_bot
 from db.database import init_db
@@ -11,7 +12,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def main():
+async def main():
     """Основная функция для запуска бота."""
     try:
         logger.info("Инициализация базы данных...")
@@ -19,8 +20,8 @@ def main():
         logger.info("База данных инициализирована.")
 
         logger.info("Запуск бота...")
-        # Используем asyncio.run() для запуска асинхронной функции run_bot
-        asyncio.run(run_bot())
+        # Используем await для запуска асинхронной функции run_bot
+        await run_bot()
 
     except Exception as e:
         logger.critical(f"Произошла критическая ошибка на верхнем уровне: {e}", exc_info=True)
@@ -29,4 +30,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # На Windows может потребоваться другая политика событий для корректной работы asyncio
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    asyncio.run(main())
