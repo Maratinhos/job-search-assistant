@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import sys
 
 from bot.bot import main as run_bot
 from db.database import init_db
@@ -29,4 +30,7 @@ async def main():
 
 
 if __name__ == "__main__":
+    # На Windows может потребоваться другая политика событий для корректной работы asyncio
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(main())
