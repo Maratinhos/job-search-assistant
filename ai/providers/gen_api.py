@@ -1,5 +1,6 @@
 import logging
 import requests
+import ast
 
 from config import GEN_API_KEY
 
@@ -39,11 +40,22 @@ class GenApiProvider:
 
         try:
             response = requests.post(self.API_URL, json=payload, headers=self.headers)
-            response.raise_for_status()  # Raise an exception for bad status codes
-            data = response.json()
+            # response.raise_for_status()  # Raise an exception for bad status codes
+            # data = response.json()
+            try:
+                data = ast.literal_eval(response)
+                # print(data['response'][0]['message']['content'])
+            except Exception as e:
+                print(f"Ошибка: {e}")
+                logger.error(f"Ошибка при обработке ответа от Gen-API: {e}")
+                return {"text": f"Error communicating with Gen-API: {e}", "usage": {"total_tokens": 0}}
 
             # Assuming the response text is in the 'output' field, based on async response example
-            text_response = data.get("output", "Error: could not parse response from Gen-API.")
+            # text_response = data.get("output", "Error: could not parse response from Gen-API.")
+            try:
+                text_response = data['response'][0]['message']['content']
+            except:
+                text_response = "Error: could not parse response from Gen-API."
 
             # Mimic the token usage structure from OpenAIProvider
             prompt_tokens = len(prompt.split())
