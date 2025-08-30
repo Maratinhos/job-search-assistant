@@ -1,0 +1,22 @@
+# Byte-code
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Databases
+*.sqlite
+*.sqlite3
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log

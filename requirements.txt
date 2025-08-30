@@ -1,0 +1,9 @@
+python-telegram-bot[job-queue]
+python-dotenv
+SQLAlchemy
+openai
+beautifulsoup4
+pytest
+requests
+requests-mock
+pytest-mock
