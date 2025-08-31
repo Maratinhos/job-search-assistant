@@ -29,7 +29,7 @@ async def test_perform_analysis_success():
     mock_db = MagicMock()
     mock_user = models.User(id=user_id, chat_id=chat_id)
     mock_resume = models.Resume(id=resume_id, user_id=user_id, file_path="resume.txt", title="Resume")
-    mock_vacancy = models.Vacancy(id=vacancy_id, user_id=user_id, file_path="vacancy.txt", name="Vacancy")
+    mock_vacancy = models.Vacancy(id=vacancy_id, user_id=user_id, file_path="vacancy.txt", title="Vacancy")
 
     # Моки для CRUD операций
     mock_crud = MagicMock()

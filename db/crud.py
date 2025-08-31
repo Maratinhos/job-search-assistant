@@ -75,9 +75,9 @@ def get_vacancy_by_id(db: Session, vacancy_id: int) -> Optional[models.Vacancy]:
     return db.query(models.Vacancy).filter(models.Vacancy.id == vacancy_id).first()
 
 
-def create_vacancy(db: Session, user_id: int, name: str, file_path: str, source: str) -> models.Vacancy:
+def create_vacancy(db: Session, user_id: int, file_path: str, source: str, title: Optional[str] = None) -> models.Vacancy:
     """Создает новую вакансию для пользователя."""
-    new_vacancy = models.Vacancy(user_id=user_id, name=name, file_path=file_path, source=source)
+    new_vacancy = models.Vacancy(user_id=user_id, file_path=file_path, source=source, title=title)
     db.add(new_vacancy)
     db.commit()
     db.refresh(new_vacancy)
@@ -85,6 +85,17 @@ def create_vacancy(db: Session, user_id: int, name: str, file_path: str, source:
 
 
 # AnalysisResult functions
+def get_analysis_result(
+    db: Session, resume_id: int, vacancy_id: int, action_type: str
+) -> Optional[models.AnalysisResult]:
+    """Получает результат анализа по ID резюме, вакансии и типу действия."""
+    return (
+        db.query(models.AnalysisResult)
+        .filter_by(resume_id=resume_id, vacancy_id=vacancy_id, action_type=action_type)
+        .first()
+    )
+
+
 def create_analysis_result(
     db: Session, resume_id: int, vacancy_id: int, action_type: str, file_path: str
 ) -> models.AnalysisResult:

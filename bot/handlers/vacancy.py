@@ -46,35 +46,29 @@ async def process_vacancy_text(update: Update, context: ContextTypes.DEFAULT_TYP
             total_tokens=usage.get("total_tokens", 0),
         )
 
-        if "да" not in response.get("text", "").lower():
+        is_vacancy = response.get("is_vacancy", False)
+        title = response.get("title")
+
+        if not is_vacancy:
             await message.reply_text(messages.VACANCY_VERIFICATION_FAILED)
             await message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard())
             return AWAITING_VACANCY_UPLOAD
 
-        # 3. Извлечение названия вакансии (первая непустая строка)
-        try:
-            first_line = next(line for line in text.split('\n') if line.strip())
-            vacancy_name = first_line.strip()
-        except StopIteration:
-            vacancy_name = "Новая вакансия"
-
-        vacancy_name = vacancy_name[:250]  # Обрезаем до длины поля в БД
-
-        # 4. Сохранение файла
+        # 3. Сохранение файла
         file_path = save_text_to_file(text, "vacancies")
         if not file_path:
             await message.reply_text(messages.ERROR_MESSAGE)
             return AWAITING_VACANCY_UPLOAD
 
-        # 5. Сохранение вакансии в БД
-        vacancy = crud.create_vacancy(db, user_id=user.id, name=vacancy_name, file_path=file_path, source=source)
+        # 4. Сохранение вакансии в БД
+        vacancy = crud.create_vacancy(db, user_id=user.id, title=title, file_path=file_path, source=source)
 
         # Сохраняем ID новой вакансии как выбранной по умолчанию
         context.user_data['selected_vacancy_id'] = vacancy.id
 
         await message.reply_text(messages.VACANCY_UPLOADED_SUCCESS)
 
-        # 6. Переход в главное меню
+        # 5. Переход в главное меню
         vacancies = crud.get_user_vacancies(db, user_id=user.id)
         await message.reply_text(
             messages.MAIN_MENU_MESSAGE.format(vacancy_count=len(vacancies)),

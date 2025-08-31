@@ -19,10 +19,10 @@ class MockProvider:
         """
         logger.info(f"Отправка запроса к Mock AI. Промпт: {prompt[:150]}...")
 
-        if "Проверь, является ли следующий текст резюме" in prompt:
+        if "является ли следующий текст резюме" in prompt:
             text_response = '{"is_resume": true, "title": "Mock Resume Title"}'
-        elif "Проверь, является ли следующий текст описанием вакансии" in prompt:
-            text_response = "да"
+        elif "является ли он описанием вакансии" in prompt:
+            text_response = '{"is_vacancy": true, "title": "Mock Vacancy Title"}'
         elif "Проанализируй соответствие" in prompt:
             text_response = "Анализ соответствия (MOCK): Кандидат отлично подходит."
         elif "Напиши сопроводительное письмо" in prompt:

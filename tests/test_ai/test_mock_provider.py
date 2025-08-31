@@ -16,7 +16,7 @@ def test_mock_provider_responses():
     # Test vacancy verification
     vacancy_prompt = prompts.VERIFY_VACANCY_PROMPT.format(text="some text")
     response = provider._get_completion(vacancy_prompt)
-    assert response["text"] == "да"
+    assert response["text"] == '{"is_vacancy": true, "title": "Mock Vacancy Title"}'
 
     # Test analysis
     analysis_prompt = prompts.ANALYZE_MATCH_PROMPT.format(

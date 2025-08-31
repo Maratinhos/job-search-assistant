@@ -45,7 +45,12 @@ def test_verify_vacancy_returns_mock_response():
     """
     client = AIClient()
     response = client.verify_vacancy("some vacancy text")
-    assert response["text"] == "да"
+    try:
+        data = json.loads(response["text"])
+        assert "is_vacancy" in data
+        assert "title" in data
+    except (json.JSONDecodeError, KeyError):
+        pytest.fail("Ответ от AI не является валидным JSON с ожидаемыми ключами")
 
 def test_analyze_match_returns_mock_response():
     """
