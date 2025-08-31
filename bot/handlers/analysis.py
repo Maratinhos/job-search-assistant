@@ -48,7 +48,10 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 with open(cached_result.file_path, 'r', encoding='utf-8') as f:
                     response_text = f.read()
                 header = _get_header_for_action(action)
-                await query.message.reply_text(text=f"{header}\n\n{response_text}")
+                message_text = f"{header}\n\n{response_text}"
+                message_text_parts = [message_text[i:i+4000] for i in range(0, len(message_text), 4000)]
+                for message_text_part in message_text_parts:
+                    await query.message.reply_text(text=message_text_part)
                 return MAIN_MENU
             except FileNotFoundError:
                 logger.warning(f"Файл для кэшированного результата не найден: {cached_result.file_path}")
@@ -115,7 +118,10 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             action=action,
         )
 
-        await query.message.reply_text(text=f"{header}\n\n{response_text}")
+        message_text = f"{header}\n\n{response_text}"
+        message_text_parts = [message_text[i:i+4000] for i in range(0, len(message_text), 4000)]
+        for message_text_part in message_text_parts:
+            await query.message.reply_text(text=message_text_part)
 
     except Exception as e:
         logger.error(f"Ошибка во время выполнения действия '{action}' для пользователя {chat_id}: {e}", exc_info=True)
