@@ -43,7 +43,7 @@ class GenApiProvider:
             # response.raise_for_status()  # Raise an exception for bad status codes
             # data = response.json()
             try:
-                data = ast.literal_eval(response)
+                data = ast.literal_eval(response.json())
                 # print(data['response'][0]['message']['content'])
             except Exception as e:
                 print(f"Ошибка: {e}")
