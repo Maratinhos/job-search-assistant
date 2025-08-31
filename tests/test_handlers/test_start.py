@@ -75,10 +75,10 @@ async def test_start_with_resume_no_vacancies(mock_get_db, mock_crud, mock_keybo
 
 
 @pytest.mark.anyio
-@patch('bot.handlers.start.keyboards', new_callable=MagicMock)
+@patch('bot.handlers.start.show_main_menu', new_callable=AsyncMock)
 @patch('bot.handlers.start.crud')
 @patch('bot.handlers.start.get_db')
-async def test_start_with_resume_and_vacancies(mock_get_db, mock_crud, mock_keyboards):
+async def test_start_with_resume_and_vacancies(mock_get_db, mock_crud, mock_show_main_menu):
     """
     Тестирует команду /start, когда у пользователя есть и резюме, и вакансии.
     """
@@ -91,7 +91,6 @@ async def test_start_with_resume_and_vacancies(mock_get_db, mock_crud, mock_keyb
     mock_crud.get_user_resume.return_value = mock_resume
     mock_crud.get_user_vacancies.return_value = [mock_vacancy]
     mock_get_db.return_value = iter([mock_db])
-    mock_keyboards.main_menu_keyboard.return_value = "main_menu_markup"
 
 
     update = AsyncMock(spec=Update)
@@ -106,7 +105,5 @@ async def test_start_with_resume_and_vacancies(mock_get_db, mock_crud, mock_keyb
 
     # --- Assertions ---
     assert result == MAIN_MENU
-    expected_message = messages.MAIN_MENU_MESSAGE.format(resume_title="My Awesome Resume", vacancy_count=1)
-    update.message.reply_text.assert_any_call(expected_message, reply_markup="main_menu_markup")
-    mock_keyboards.main_menu_keyboard.assert_called_once_with(vacancy_count=1, has_resume=True)
-    assert context.user_data['selected_vacancy_id'] == mock_vacancy.id
+    assert context.user_data['selected_vacancy_id'] == 1
+    mock_show_main_menu.assert_called_once_with(update, context)

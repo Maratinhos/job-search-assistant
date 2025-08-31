@@ -6,6 +6,7 @@ from db.database import get_db
 from db import crud
 from bot import messages, keyboards
 from .resume import AWAITING_RESUME_UPLOAD, AWAITING_VACANCY_UPLOAD, MAIN_MENU
+from .main_menu_helpers import show_main_menu
 
 logger = logging.getLogger(__name__)
 
@@ -42,14 +43,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             return AWAITING_VACANCY_UPLOAD
 
         # 3. Если все есть, переходим в главное меню
-        vacancy_count = len(vacancies)
         # По умолчанию выбираем последнюю загруженную вакансию
         context.user_data['selected_vacancy_id'] = vacancies[0].id
-
-        await update.message.reply_text(
-            messages.MAIN_MENU_MESSAGE.format(resume_title=resume.title, vacancy_count=vacancy_count),
-            reply_markup=keyboards.main_menu_keyboard(vacancy_count=vacancy_count, has_resume=True)
-        )
+        await show_main_menu(update, context)
         return MAIN_MENU
 
     finally:
