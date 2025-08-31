@@ -72,17 +72,22 @@ async def process_resume_text(update: Update, context: ContextTypes.DEFAULT_TYPE
                 # Старый формат ответа
                 response_text = response_data.get("text", "{}")
 
-            # Очистка от markdown-блоков
-            response_text = response_text.strip()
-            if response_text.startswith("```json"):
-                response_text = response_text[7:-4].strip()
-            elif response_text.startswith("```"):
-                response_text = response_text[3:-3].strip()
+            # Проверяем, является ли ответ строкой, которую нужно парсить, или уже объектом
+            if isinstance(response_text, str):
+                # Очистка от markdown-блоков
+                response_text = response_text.strip()
+                if response_text.startswith("```json"):
+                    response_text = response_text[7:-4].strip()
+                elif response_text.startswith("```"):
+                    response_text = response_text[3:-3].strip()
+                response_json = json.loads(response_text)
+            else:
+                # Если это не строка, предполагаем, что это уже готовый dict
+                response_json = response_text
 
-            response_json = json.loads(response_text)
             is_resume = response_json.get("is_resume", False)
             resume_title = response_json.get("title")
-        except (json.JSONDecodeError, AttributeError, KeyError, IndexError) as e:
+        except (json.JSONDecodeError, AttributeError, KeyError, IndexError, TypeError) as e:
             is_resume = False
             resume_title = None
             logger.error(f"Failed to parse AI response: {response_data}. Error: {e}")
