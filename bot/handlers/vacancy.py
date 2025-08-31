@@ -1,5 +1,6 @@
 import logging
 import re
+import json
 from telegram import Update
 from telegram.ext import (
     ContextTypes,
@@ -46,8 +47,30 @@ async def process_vacancy_text(update: Update, context: ContextTypes.DEFAULT_TYP
             total_tokens=usage.get("total_tokens", 0),
         )
 
-        is_vacancy = response.get("is_vacancy", False)
-        title = response.get("title")
+        try:
+            # Извлекаем основной контент, который может быть строкой или уже dict
+            content = response.get("text", "{}")
+
+            # Проверяем, является ли ответ строкой, которую нужно парсить
+            if isinstance(content, str):
+                # Очистка от markdown-блоков
+                content = content.strip()
+                if content.startswith("```json"):
+                    content = content[7:-4].strip()
+                elif content.startswith("```"):
+                    content = content[3:-3].strip()
+                response_json = json.loads(content)
+            else:
+                # Если это не строка, предполагаем, что это уже готовый dict
+                response_json = content
+
+            is_vacancy = response_json.get("is_vacancy", False)
+            title = response_json.get("title")
+
+        except (json.JSONDecodeError, AttributeError, TypeError) as e:
+            logger.error(f"Failed to parse AI response for vacancy: {response}. Error: {e}")
+            is_vacancy = False
+            title = None
 
         if not is_vacancy:
             await message.reply_text(messages.VACANCY_VERIFICATION_FAILED)
