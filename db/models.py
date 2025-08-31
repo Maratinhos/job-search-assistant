@@ -41,6 +41,7 @@ class Resume(Base):
     title = Column(String(255), nullable=True)
 
     user = relationship("User", back_populates="resumes")
+    analysis_results = relationship("AnalysisResult", back_populates="resume", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Resume(id={self.id}, user_id={self.user_id}, title='{self.title}')>"
@@ -58,6 +59,7 @@ class Vacancy(Base):
     source = Column(String(255), nullable=True)
 
     user = relationship("User", back_populates="vacancies")
+    analysis_results = relationship("AnalysisResult", back_populates="vacancy", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Vacancy(id={self.id}, name='{self.name}', user_id={self.user_id})>"
@@ -70,12 +72,35 @@ class AIUsageLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    resume_id = Column(Integer, ForeignKey("resumes.id"), nullable=True)
+    vacancy_id = Column(Integer, ForeignKey("vacancies.id"), nullable=True)
+    action = Column(String(255), nullable=True)
     prompt_tokens = Column(Integer, nullable=False)
     completion_tokens = Column(Integer, nullable=False)
     total_tokens = Column(Integer, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="ai_usage_logs")
+    resume = relationship("Resume")
+    vacancy = relationship("Vacancy")
 
     def __repr__(self):
         return f"<AIUsageLog(id={self.id}, user_id={self.user_id}, total_tokens={self.total_tokens})>"
+
+
+class AnalysisResult(Base):
+    """Модель для хранения результатов анализа."""
+
+    __tablename__ = "analysis_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    resume_id = Column(Integer, ForeignKey("resumes.id"), nullable=False)
+    vacancy_id = Column(Integer, ForeignKey("vacancies.id"), nullable=False)
+    action_type = Column(String(255), nullable=False)  # e.g., 'analyze_match', 'generate_letter'
+    file_path = Column(String(255), nullable=False)
+
+    resume = relationship("Resume", back_populates="analysis_results")
+    vacancy = relationship("Vacancy", back_populates="analysis_results")
+
+    def __repr__(self):
+        return f"<AnalysisResult(id={self.id}, action_type='{self.action_type}')>"

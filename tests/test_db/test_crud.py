@@ -77,3 +77,49 @@ def test_get_user_resume_no_resume(db_session):
     user = crud.get_or_create_user(db_session, chat_id=999)
     resume = crud.get_user_resume(db_session, user_id=user.id)
     assert resume is None
+
+
+def test_create_ai_usage_log_with_relations(db_session):
+    """Тестирует создание лога использования AI с привязкой к резюме и вакансии."""
+    user = crud.get_or_create_user(db_session, chat_id=789)
+    resume = crud.create_resume(db_session, user_id=user.id, file_path="r.txt", source="s", title="T")
+    vacancy = crud.create_vacancy(db_session, user_id=user.id, name="V", file_path="v.txt", source="s")
+
+    log = crud.create_ai_usage_log(
+        db_session,
+        user_id=user.id,
+        prompt_tokens=10,
+        completion_tokens=20,
+        total_tokens=30,
+        resume_id=resume.id,
+        vacancy_id=vacancy.id,
+        action="test_action",
+    )
+
+    assert log.id is not None
+    assert log.user_id == user.id
+    assert log.resume_id == resume.id
+    assert log.vacancy_id == vacancy.id
+    assert log.action == "test_action"
+    assert log.total_tokens == 30
+
+
+def test_create_analysis_result(db_session):
+    """Тестирует создание записи о результате анализа."""
+    user = crud.get_or_create_user(db_session, chat_id=101)
+    resume = crud.create_resume(db_session, user_id=user.id, file_path="r.txt", source="s", title="T")
+    vacancy = crud.create_vacancy(db_session, user_id=user.id, name="V", file_path="v.txt", source="s")
+
+    analysis = crud.create_analysis_result(
+        db_session,
+        resume_id=resume.id,
+        vacancy_id=vacancy.id,
+        action_type="test_analysis",
+        file_path="/path/to/analysis.txt",
+    )
+
+    assert analysis.id is not None
+    assert analysis.resume_id == resume.id
+    assert analysis.vacancy_id == vacancy.id
+    assert analysis.action_type == "test_analysis"
+    assert analysis.file_path == "/path/to/analysis.txt"

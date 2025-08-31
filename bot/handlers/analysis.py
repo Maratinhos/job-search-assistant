@@ -1,4 +1,6 @@
 import logging
+import os
+import uuid
 from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
@@ -71,6 +73,24 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             await query.message.reply_text(text=messages.NOT_IMPLEMENTED)
             return MAIN_MENU
 
+        response_text = response.get("text", "Не удалось получить ответ от AI.")
+
+        # Сохранение результата анализа
+        analysis_dir = "analysis_results"
+        os.makedirs(analysis_dir, exist_ok=True)
+        file_name = f"{uuid.uuid4()}.txt"
+        file_path = os.path.join(analysis_dir, file_name)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(response_text)
+
+        crud.create_analysis_result(
+            db,
+            resume_id=resume.id,
+            vacancy_id=vacancy.id,
+            action_type=action,
+            file_path=file_path,
+        )
+
         # Логирование использования AI
         usage = response.get("usage", {})
         crud.create_ai_usage_log(
@@ -79,9 +99,11 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             prompt_tokens=usage.get("prompt_tokens", 0),
             completion_tokens=usage.get("completion_tokens", 0),
             total_tokens=usage.get("total_tokens", 0),
+            resume_id=resume.id,
+            vacancy_id=vacancy.id,
+            action=action,
         )
 
-        response_text = response.get("text", "Не удалось получить ответ от AI.")
         await query.message.reply_text(text=f"{header}\n\n{response_text}")
 
     except Exception as e:

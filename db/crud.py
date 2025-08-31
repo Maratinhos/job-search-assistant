@@ -17,13 +17,25 @@ def get_or_create_user(db: Session, chat_id: int) -> models.User:
 
 
 # AI Usage Log functions
-def create_ai_usage_log(db: Session, user_id: int, prompt_tokens: int, completion_tokens: int, total_tokens: int) -> models.AIUsageLog:
+def create_ai_usage_log(
+    db: Session,
+    user_id: int,
+    prompt_tokens: int,
+    completion_tokens: int,
+    total_tokens: int,
+    resume_id: Optional[int] = None,
+    vacancy_id: Optional[int] = None,
+    action: Optional[str] = None,
+) -> models.AIUsageLog:
     """Создает запись о использовании AI."""
     new_log = models.AIUsageLog(
         user_id=user_id,
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         total_tokens=total_tokens,
+        resume_id=resume_id,
+        vacancy_id=vacancy_id,
+        action=action,
     )
     db.add(new_log)
     db.commit()
@@ -70,3 +82,20 @@ def create_vacancy(db: Session, user_id: int, name: str, file_path: str, source:
     db.commit()
     db.refresh(new_vacancy)
     return new_vacancy
+
+
+# AnalysisResult functions
+def create_analysis_result(
+    db: Session, resume_id: int, vacancy_id: int, action_type: str, file_path: str
+) -> models.AnalysisResult:
+    """Создает запись о результате анализа."""
+    new_analysis = models.AnalysisResult(
+        resume_id=resume_id,
+        vacancy_id=vacancy_id,
+        action_type=action_type,
+        file_path=file_path,
+    )
+    db.add(new_analysis)
+    db.commit()
+    db.refresh(new_analysis)
+    return new_analysis
