@@ -39,12 +39,16 @@ async def test_handle_vacancy_file_success(mock_process_vacancy, update_mock, co
     )
 
 @pytest.mark.anyio
+@patch('bot.handlers.vacancy.show_main_menu', new_callable=AsyncMock)
 @patch('bot.handlers.vacancy.save_text_to_file', return_value="/fake/path/vacancy.txt")
 @patch('bot.handlers.vacancy.crud')
 @patch('bot.handlers.vacancy.get_ai_client')
-async def test_process_vacancy_text_success(mock_get_ai, mock_crud, mock_save, update_mock, context_mock):
+async def test_process_vacancy_text_success(mock_get_ai, mock_crud, mock_save, mock_show_main_menu, update_mock, context_mock):
     mock_ai_client = MagicMock()
-    mock_ai_client.verify_vacancy.return_value = {"is_vacancy": True, "title": "Test Vacancy", "usage": {"total_tokens": 100}}
+    mock_ai_client.verify_vacancy.return_value = {
+        "text": '{"is_vacancy": true, "title": "Test Vacancy"}',
+        "usage": {"total_tokens": 100}
+    }
     mock_get_ai.return_value = mock_ai_client
 
     mock_db_session = MagicMock()
@@ -60,6 +64,7 @@ async def test_process_vacancy_text_success(mock_get_ai, mock_crud, mock_save, u
     mock_crud.create_vacancy.assert_called_once()
     assert context_mock.user_data['selected_vacancy_id'] == 99
     assert result_state == MAIN_MENU
+    mock_show_main_menu.assert_called_once_with(update_mock, context_mock)
 
 @pytest.mark.anyio
 @patch('bot.handlers.vacancy.save_text_to_file')

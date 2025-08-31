@@ -46,18 +46,25 @@ async def select_vacancy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     try:
         user = crud.get_or_create_user(db, chat_id=chat_id)
         vacancies = crud.get_user_vacancies(db, user_id=user.id)
+
+        # Эта проверка на случай, если вакансии были удалены с момента последней отрисовки меню
         if not vacancies:
-            await query.edit_message_text(messages.MAIN_MENU_NO_VACANCIES)
-            await query.message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard())
-            return AWAITING_VACANCY_UPLOAD
+            # Сбрасываем выбранную вакансию, если она была
+            context.user_data.pop('selected_vacancy_id', None)
+            # Показываем обновленное главное меню
+            await show_main_menu(update, context)
+            return MAIN_MENU
 
         await query.edit_message_text(
             messages.CHOOSE_VACANCY_FOR_ACTION,
             reply_markup=keyboards.vacancy_selection_keyboard(vacancies)
         )
-        return MAIN_MENU # Остаемся в том же состоянии, но с другой клавиатурой
+        return MAIN_MENU  # Остаемся в том же состоянии, но с другой клавиатурой
     finally:
         db.close()
+
+
+from .main_menu_helpers import show_main_menu
 
 
 async def on_vacancy_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -70,24 +77,8 @@ async def on_vacancy_selected(update: Update, context: ContextTypes.DEFAULT_TYPE
     vacancy_id = int(query.data.split('_')[-1])
     context.user_data['selected_vacancy_id'] = vacancy_id
 
-    chat_id = update.effective_chat.id
-    db_session_gen = get_db()
-    db = next(db_session_gen)
-    try:
-        user = crud.get_or_create_user(db, chat_id=chat_id)
-        resume = crud.get_user_resume(db, user_id=user.id)
-        vacancies = crud.get_user_vacancies(db, user_id=user.id)
-
-        await query.edit_message_text(
-            messages.MAIN_MENU_MESSAGE.format(vacancy_count=len(vacancies)),
-            reply_markup=keyboards.main_menu_keyboard(
-                vacancy_count=len(vacancies),
-                has_resume=resume is not None
-            )
-        )
-        return MAIN_MENU
-    finally:
-        db.close()
+    await show_main_menu(update, context)
+    return MAIN_MENU
 
 # --- Экспортируемые обработчики ---
 update_resume_handler = CallbackQueryHandler(update_resume_request, pattern="^update_resume$")
