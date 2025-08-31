@@ -54,7 +54,7 @@ class Vacancy(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    name = Column(String(255), nullable=False)  # A name for the vacancy
+    title = Column(String(255), nullable=True)  # The title of the vacancy
     file_path = Column(String(255), nullable=False)
     source = Column(String(255), nullable=True)
 
@@ -62,7 +62,7 @@ class Vacancy(Base):
     analysis_results = relationship("AnalysisResult", back_populates="vacancy", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<Vacancy(id={self.id}, name='{self.name}', user_id={self.user_id})>"
+        return f"<Vacancy(id={self.id}, title='{self.title}', user_id={self.user_id})>"
 
 
 class AIUsageLog(Base):

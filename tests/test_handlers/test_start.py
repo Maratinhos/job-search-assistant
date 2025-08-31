@@ -86,7 +86,7 @@ async def test_start_with_resume_and_vacancies(mock_get_db, mock_crud, mock_keyb
     mock_db = MagicMock()
     mock_user = models.User(id=1, chat_id=123)
     mock_resume = models.Resume(id=1, user_id=1, file_path="path", source="test", title="My Awesome Resume")
-    mock_vacancy = models.Vacancy(id=1, user_id=1, name="DevOps", file_path="path", source="test")
+    mock_vacancy = models.Vacancy(id=1, user_id=1, title="DevOps", file_path="path", source="test")
     mock_crud.get_or_create_user.return_value = mock_user
     mock_crud.get_user_resume.return_value = mock_resume
     mock_crud.get_user_vacancies.return_value = [mock_vacancy]
