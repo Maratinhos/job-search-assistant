@@ -75,10 +75,19 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             return MAIN_MENU
 
         response_text = response.get("text", "Не удалось получить ответ от AI.")
+        if not response.get("text"):
+            # Если текста нет, вероятно, произошла ошибка, и мы уже уведомили пользователя.
+            # Просто выходим, чтобы не сохранять пустой файл и не падать.
+            logger.warning(f"Действие '{action}' не вернуло текст от AI. Ответ: {response}")
+            # Отправляем сообщение об ошибке, если его еще не было
+            if "error" in response:
+                await query.message.reply_text(text=messages.ERROR_MESSAGE)
+            return MAIN_MENU
+
         header = _get_header_for_action(action)
 
         # Сохранение результата анализа
-        analysis_dir = "analysis_results"
+        analysis_dir = "storage/analysis_results"
         os.makedirs(analysis_dir, exist_ok=True)
         file_name = f"{uuid.uuid4()}.txt"
         file_path = os.path.join(analysis_dir, file_name)
