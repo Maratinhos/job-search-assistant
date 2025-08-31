@@ -61,6 +61,7 @@ class GenAPIProvider:
                             # Не получилось? Возвращаем исходный dict, пусть обработчик решает.
                             return data
                 return data
+
             except requests.exceptions.JSONDecodeError:
                 logger.warning(f"Ответ не является валидным JSON. Попытка найти JSON в сыром тексте.")
                 match = re.search(r'\{.*\}', raw_response_text, re.DOTALL)
