@@ -48,7 +48,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
         await update.message.reply_text(
             messages.MAIN_MENU_MESSAGE.format(resume_title=resume.title, vacancy_count=vacancy_count),
-            reply_markup=keyboards.main_menu_keyboard(vacancy_count)
+            reply_markup=keyboards.main_menu_keyboard(vacancy_count=vacancy_count, has_resume=True)
         )
         return MAIN_MENU
 

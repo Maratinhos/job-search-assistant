@@ -29,6 +29,7 @@ from bot.handlers.analysis import (
     generate_tech_plan_handler,
 )
 from bot.handlers.menu import (
+    update_resume_handler,
     upload_vacancy_handler,
     select_vacancy_handler,
     vacancy_selected_handler,
@@ -67,6 +68,7 @@ def create_application() -> Application:
                 generate_hr_plan_handler,
                 generate_tech_plan_handler,
                 # Действия из меню (из menu.py)
+                update_resume_handler,
                 upload_vacancy_handler,
                 select_vacancy_handler,
                 vacancy_selected_handler,

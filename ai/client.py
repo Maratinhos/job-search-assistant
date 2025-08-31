@@ -1,9 +1,9 @@
-from .providers.gen_api import GenApiProvider
+from .providers.gen_api import GenAPIProvider
 from . import prompts
 
 # Здесь можно легко переключить провайдера, изменив одну строку
 # from .providers.openai import OpenAIProvider
-AIProvider = GenApiProvider
+AIProvider = GenAPIProvider
 
 
 class AIClient:
