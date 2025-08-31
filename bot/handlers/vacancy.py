@@ -70,8 +70,14 @@ async def process_vacancy_text(update: Update, context: ContextTypes.DEFAULT_TYP
 
         # 5. Переход в главное меню
         vacancies = crud.get_user_vacancies(db, user_id=user.id)
+        # Нужен заголовок резюме для сообщения
+        resume = crud.get_user_resume(db, user_id=user.id)
+        resume_title = resume.title if resume else "ваше резюме"
         await message.reply_text(
-            messages.MAIN_MENU_MESSAGE.format(vacancy_count=len(vacancies)),
+            messages.MAIN_MENU_MESSAGE.format(
+                resume_title=resume_title,
+                vacancy_count=len(vacancies)
+            ),
             reply_markup=keyboards.main_menu_keyboard(
                 vacancy_count=len(vacancies),
                 has_resume=True

@@ -1,6 +1,8 @@
 import logging
 import requests
 import ast
+import json
+import re
 
 from config import GEN_API_KEY
 
@@ -28,10 +30,10 @@ class GenAPIProvider:
 
     def _get_completion(self, prompt: str) -> dict:
         """
-        Отправляет синхронный запрос к API gen-api.ru и возвращает ответ.
+        Отправляет синхронный запрос к API gen-api.ru, логирует ответ и пытается
+        извлечь из него JSON.
         """
         logger.info(f"Отправка запроса к Gen-API. Промпт: {prompt[:150]}...")
-
         payload = {
             "is_sync": True,
             "model": "gpt-5-mini",
@@ -40,14 +42,40 @@ class GenAPIProvider:
 
         try:
             response = requests.post(self.API_URL, json=payload, headers=self.headers)
-            response.raise_for_status()  # Raise an exception for bad status codes
-            return response.json()
-        except requests.exceptions.JSONDecodeError as e:
-            logger.error(f"Ошибка при декодировании JSON ответа от Gen-API: {e}")
-            return {"text": f"Error decoding JSON from Gen-API: {e}", "usage": {"total_tokens": 0}}
+            response.raise_for_status()
+            raw_response_text = response.text
+            logger.info(f"Получен сырой ответ от Gen-API: {raw_response_text}")
+
+            try:
+                data = response.json()
+                content_str = data.get("result", {}).get("text") or data.get("text")
+                if isinstance(content_str, str):
+                    match = re.search(r'\{.*\}', content_str, re.DOTALL)
+                    if match:
+                        json_str = match.group(0)
+                        try:
+                            # Строго пытаемся распарсить как JSON
+                            return json.loads(json_str)
+                        except json.JSONDecodeError as e:
+                            logger.error(f"Не удалось распарсить как JSON извлеченную строку: {json_str}. Ошибка: {e}")
+                            # Не получилось? Возвращаем исходный dict, пусть обработчик решает.
+                            return data
+                return data
+            except requests.exceptions.JSONDecodeError:
+                logger.warning(f"Ответ не является валидным JSON. Попытка найти JSON в сыром тексте.")
+                match = re.search(r'\{.*\}', raw_response_text, re.DOTALL)
+                if match:
+                    json_str = match.group(0)
+                    try:
+                        return json.loads(json_str)
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Не удалось распарсить как JSON строку из сырого текста: {json_str}. Ошибка: {e}")
+
+                return {"is_vacancy": False, "title": None, "error": "Invalid response from AI"}
+
         except requests.exceptions.RequestException as e:
             logger.error(f"Ошибка при запросе к Gen-API: {e}")
-            return {"text": f"Error communicating with Gen-API: {e}", "usage": {"total_tokens": 0}}
+            return {"is_vacancy": False, "title": None, "error": f"RequestException: {e}"}
 
     def verify_text(self, text: str, prompt_template: str) -> dict:
         """
