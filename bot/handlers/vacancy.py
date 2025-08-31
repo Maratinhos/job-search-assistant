@@ -9,6 +9,7 @@ from telegram.ext import (
 )
 
 from .resume import MAIN_MENU, AWAITING_VACANCY_UPLOAD
+from .main_menu_helpers import show_main_menu
 from bot import messages, keyboards
 from db import crud
 from db.database import get_db
@@ -92,20 +93,7 @@ async def process_vacancy_text(update: Update, context: ContextTypes.DEFAULT_TYP
         await message.reply_text(messages.VACANCY_UPLOADED_SUCCESS)
 
         # 5. Переход в главное меню
-        vacancies = crud.get_user_vacancies(db, user_id=user.id)
-        # Нужен заголовок резюме для сообщения
-        resume = crud.get_user_resume(db, user_id=user.id)
-        resume_title = resume.title if resume else "ваше резюме"
-        await message.reply_text(
-            messages.MAIN_MENU_MESSAGE.format(
-                resume_title=resume_title,
-                vacancy_count=len(vacancies)
-            ),
-            reply_markup=keyboards.main_menu_keyboard(
-                vacancy_count=len(vacancies),
-                has_resume=True
-            )
-        )
+        await show_main_menu(update, context)
         return MAIN_MENU
     finally:
         db.close()
