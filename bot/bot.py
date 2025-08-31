@@ -4,11 +4,13 @@ from telegram.ext import (
     CommandHandler,
     ConversationHandler,
     CallbackQueryHandler,
+    MessageHandler,
+    filters,
 )
 
 from config import TELEGRAM_BOT_TOKEN
 from bot.handlers.start import start
-from bot.handlers.common import cancel
+from bot.handlers.common import cancel, global_fallback_handler
 from bot.handlers.resume import (
     AWAITING_RESUME_UPLOAD,
     AWAITING_VACANCY_UPLOAD,
@@ -74,10 +76,13 @@ def create_application() -> Application:
                 vacancy_selected_handler,
             ],
         },
-        fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel_action$")],
+        fallbacks=[
+            CallbackQueryHandler(cancel, pattern="^cancel_action$"),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, global_fallback_handler),
+        ],
         per_user=True,
         per_chat=True,
-        allow_reentry=True # Позволяет повторно входить в диалог с помощью /start
+        allow_reentry=True  # Позволяет повторно входить в диалог с помощью /start
     )
 
     application.add_handler(conv_handler)
