@@ -1,9 +1,7 @@
 import logging
 import requests
-import ast
+import time
 import json
-import re
-
 from config import GEN_API_KEY
 
 logger = logging.getLogger(__name__)
@@ -15,6 +13,9 @@ class GenAPIProvider:
     """
 
     API_URL = "https://api.gen-api.ru/api/v1/networks/gpt-5"
+    RESULT_URL = "https://api.gen-api.ru/api/v1/request/get/{request_id}"
+    POLLING_INTERVAL = 3  # Секунды
+    MAX_POLLING_ATTEMPTS = 100  # Максимальное количество попыток
 
     def __init__(self, api_key: str = GEN_API_KEY):
         if not api_key:
@@ -30,53 +31,65 @@ class GenAPIProvider:
 
     def _get_completion(self, prompt: str) -> dict:
         """
-        Отправляет синхронный запрос к API gen-api.ru, логирует ответ и пытается
-        извлечь из него JSON.
+        Отправляет асинхронный запрос к API gen-api.ru и получает результат
+        через long-polling.
         """
-        logger.info(f"Отправка запроса к Gen-API. Промпт: {prompt[:150]}...")
+        logger.info(f"Отправка асинхронного запроса к Gen-API. Промпт: {prompt[:150]}...")
         payload = {
-            "is_sync": True,
             "model": "gpt-5-mini",
             "messages": [{"role": "user", "content": prompt}],
         }
 
         try:
-            response = requests.post(self.API_URL, json=payload, headers=self.headers)
-            response.raise_for_status()
-            raw_response_text = response.text
-            logger.info(f"Получен сырой ответ от Gen-API: {raw_response_text}")
+            # 1. Отправляем начальный запрос на создание задачи
+            initial_response = requests.post(self.API_URL, json=payload, headers=self.headers)
+            initial_response.raise_for_status()
+            initial_data = initial_response.json()
+            logger.info(f"Получен ответ на создание задачи: {initial_data}")
 
-            try:
-                data = response.json()
-                content_str = data.get("result", {}).get("text") or data.get("text")
-                if isinstance(content_str, str):
-                    match = re.search(r'\{.*\}', content_str, re.DOTALL)
-                    if match:
-                        json_str = match.group(0)
-                        try:
-                            # Строго пытаемся распарсить как JSON
-                            return json.loads(json_str)
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Не удалось распарсить как JSON извлеченную строку: {json_str}. Ошибка: {e}")
-                            # Не получилось? Возвращаем исходный dict, пусть обработчик решает.
-                            return data
-                return data
+            request_id = initial_data.get("request_id")
+            if not request_id:
+                logger.error(f"Не удалось получить request_id из ответа: {initial_data}")
+                return {"text": None, "error": "Failed to get request_id"}
 
-            except requests.exceptions.JSONDecodeError:
-                logger.warning(f"Ответ не является валидным JSON. Попытка найти JSON в сыром тексте.")
-                match = re.search(r'\{.*\}', raw_response_text, re.DOTALL)
-                if match:
-                    json_str = match.group(0)
+            # 2. Опрашиваем статус задачи
+            for attempt in range(self.MAX_POLLING_ATTEMPTS):
+                logger.info(f"Попытка {attempt + 1}/{self.MAX_POLLING_ATTEMPTS}: Проверка статуса для request_id {request_id}")
+                time.sleep(self.POLLING_INTERVAL)
+
+                result_response = requests.get(self.RESULT_URL.format(request_id=request_id), headers=self.headers)
+                result_response.raise_for_status()
+                result_data = result_response.json()
+
+                status = result_data.get("status")
+                logger.info(f"Текущий статус задачи: {status}")
+
+                if status == "success":
+                    logger.info(f"Задача {request_id} успешно выполнена. Ответ: {result_data}")
                     try:
-                        return json.loads(json_str)
-                    except json.JSONDecodeError as e:
-                        logger.error(f"Не удалось распарсить как JSON строку из сырого текста: {json_str}. Ошибка: {e}")
+                        # Извлекаем основной текстовый контент
+                        content = result_data["full_response"][0]["message"]["content"]
+                        return {"text": content, "full_response": result_data}
+                    except (KeyError, IndexError, TypeError) as e:
+                        logger.error(f"Не удалось извлечь контент из успешного ответа: {e}. Ответ: {result_data}")
+                        return {"text": None, "error": f"Failed to parse successful response: {e}"}
 
-                return {"is_vacancy": False, "title": None, "error": "Invalid response from AI"}
+                elif status == "failed":
+                    logger.error(f"Задача {request_id} провалена. Ответ: {result_data}")
+                    return {"text": None, "error": "AI task failed", "full_response": result_data}
+
+                elif status != "processing":
+                    logger.warning(f"Неизвестный статус задачи {request_id}: {status}")
+
+            logger.error(f"Превышено максимальное количество попыток для request_id {request_id}")
+            return {"text": None, "error": "Polling timeout"}
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Ошибка при запросе к Gen-API: {e}")
-            return {"is_vacancy": False, "title": None, "error": f"RequestException: {e}"}
+            return {"text": None, "error": f"RequestException: {e}"}
+        except json.JSONDecodeError as e:
+            logger.error(f"Ошибка декодирования JSON ответа от Gen-API: {e}")
+            return {"text": None, "error": f"JSONDecodeError: {e}"}
 
     def verify_text(self, text: str, prompt_template: str) -> dict:
         """

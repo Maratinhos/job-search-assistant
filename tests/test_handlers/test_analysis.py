@@ -59,7 +59,7 @@ async def test_perform_analysis_success(mock_get_db, mock_crud, mock_get_ai, moc
         resume_id=resume_id,
         vacancy_id=vacancy_id,
         action_type="analyze_match",
-        file_path=os.path.join("analysis_results", "test-uuid.txt")
+            file_path=os.path.join("storage", "analysis_results", "test-uuid.txt")
     )
 
     mock_crud.create_ai_usage_log.assert_called_once()
