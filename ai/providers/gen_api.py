@@ -42,7 +42,6 @@ class GenAPIProvider:
             response = requests.post(self.API_URL, json=payload, headers=self.headers)
             response.raise_for_status()  # Raise an exception for bad status codes
             return response.json()
-
         except requests.exceptions.JSONDecodeError as e:
             logger.error(f"Ошибка при декодировании JSON ответа от Gen-API: {e}")
             return {"text": f"Error decoding JSON from Gen-API: {e}", "usage": {"total_tokens": 0}}
