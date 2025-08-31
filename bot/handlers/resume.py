@@ -44,20 +44,36 @@ async def process_resume_text(update: Update, context: ContextTypes.DEFAULT_TYPE
         ai_client = get_ai_client()
         response_data = ai_client.verify_resume(text)
 
-        # 2. Логирование использования AI
-        usage = response_data.get("usage", {})
+        # 2. Логирование использования AI (адаптировано к разным форматам)
+        # TODO: Рассмотреть возможность унификации формата ответа от AI или добавить поле cost в БД
+        if "usage" in response_data:
+            usage = response_data.get("usage", {})
+            prompt_tokens = usage.get("prompt_tokens", 0)
+            completion_tokens = usage.get("completion_tokens", 0)
+            total_tokens = usage.get("total_tokens", 0)
+        else:
+            # В новом формате нет информации о токенах, логируем нули
+            prompt_tokens, completion_tokens, total_tokens = 0, 0, 0
+
         crud.create_ai_usage_log(
             db,
             user_id=user.id,
-            prompt_tokens=usage.get("prompt_tokens", 0),
-            completion_tokens=usage.get("completion_tokens", 0),
-            total_tokens=usage.get("total_tokens", 0),
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
         )
 
         try:
-            # Очистка и парсинг JSON из ответа AI
-            response_text = response_data.get("text", "{}").strip()
-            # Иногда AI возвращает JSON в тройных кавычках, убираем их
+            # Парсинг JSON из ответа AI (адаптировано к разным форматам)
+            if "response" in response_data:
+                # Новый формат ответа
+                response_text = response_data['response'][0]['message']['content']
+            else:
+                # Старый формат ответа
+                response_text = response_data.get("text", "{}")
+
+            # Очистка от markdown-блоков
+            response_text = response_text.strip()
             if response_text.startswith("```json"):
                 response_text = response_text[7:-4].strip()
             elif response_text.startswith("```"):
@@ -66,10 +82,10 @@ async def process_resume_text(update: Update, context: ContextTypes.DEFAULT_TYPE
             response_json = json.loads(response_text)
             is_resume = response_json.get("is_resume", False)
             resume_title = response_json.get("title")
-        except (json.JSONDecodeError, AttributeError):
+        except (json.JSONDecodeError, AttributeError, KeyError, IndexError) as e:
             is_resume = False
             resume_title = None
-            logger.error(f"Failed to parse AI response: {response_data.get('text')}")
+            logger.error(f"Failed to parse AI response: {response_data}. Error: {e}")
 
 
         if not is_resume:

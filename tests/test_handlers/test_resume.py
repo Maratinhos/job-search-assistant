@@ -106,3 +106,65 @@ async def test_process_resume_text_verification_failed(mock_get_ai_client):
     assert result == AWAITING_RESUME_UPLOAD
     # Check that the user is informed about the failure
     assert "не похож на резюме" in update.effective_message.reply_text.call_args_list[1].args[0]
+
+
+@pytest.mark.anyio
+@patch('bot.handlers.resume.get_ai_client')
+@patch('bot.handlers.resume.crud')
+@patch('bot.handlers.resume.save_text_to_file', return_value="some/path/resume.txt")
+@patch('bot.handlers.resume.get_db')
+async def test_process_resume_text_new_ai_format(
+    mock_get_db, mock_save_text, mock_crud, mock_get_ai_client
+):
+    """
+    Тестирует успешный сценарий обработки текста резюме с новым форматом ответа от AI.
+    """
+    # --- Mocks Setup ---
+    # AI Client
+    mock_ai_client = MagicMock()
+    # This is the response format provided by the user
+    mock_ai_client.verify_resume.return_value = {
+        'request_id': 24075135,
+        'model': 'gpt-5',
+        'cost': 0.2593,
+        'response': [{
+            'logprobs': None,
+            'finish_reason': 'stop',
+            'native_finish_reason': 'completed',
+            'index': 0,
+            'message': {
+                'role': 'assistant',
+                'content': '{"is_resume": true, "title": "Senior BI Analyst"}'
+            }
+        }]
+    }
+    mock_get_ai_client.return_value = mock_ai_client
+
+    # Database
+    mock_db = MagicMock()
+    mock_user = models.User(id=1, chat_id=123)
+    mock_crud.get_or_create_user.return_value = mock_user
+    mock_get_db.return_value = iter([mock_db])
+
+    # Telegram Update
+    update = AsyncMock(spec=Update)
+    update.effective_chat.id = 123
+    update.effective_message = AsyncMock(spec=Message)
+
+    context = MagicMock(spec=ContextTypes.DEFAULT_TYPE)
+
+    # --- Call ---
+    result = await process_resume_text(update, context, "resume text", "test_source")
+
+    # --- Assertions ---
+    # Resume was created in DB with the correct title
+    mock_crud.create_resume.assert_called_once_with(
+        mock_db,
+        user_id=mock_user.id,
+        file_path="some/path/resume.txt",
+        source="test_source",
+        title="Senior BI Analyst"
+    )
+
+    # Correct state is returned
+    assert result == AWAITING_VACANCY_UPLOAD
