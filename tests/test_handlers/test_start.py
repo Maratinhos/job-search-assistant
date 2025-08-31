@@ -108,4 +108,5 @@ async def test_start_with_resume_and_vacancies(mock_get_db, mock_crud, mock_keyb
     assert result == MAIN_MENU
     expected_message = messages.MAIN_MENU_MESSAGE.format(resume_title="My Awesome Resume", vacancy_count=1)
     update.message.reply_text.assert_any_call(expected_message, reply_markup="main_menu_markup")
+    mock_keyboards.main_menu_keyboard.assert_called_once_with(vacancy_count=1, has_resume=True)
     assert context.user_data['selected_vacancy_id'] == mock_vacancy.id

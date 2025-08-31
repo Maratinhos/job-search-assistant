@@ -3,11 +3,22 @@ from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
 from bot import messages, keyboards
-from .resume import AWAITING_VACANCY_UPLOAD, MAIN_MENU
+from .resume import AWAITING_RESUME_UPLOAD, AWAITING_VACANCY_UPLOAD, MAIN_MENU
 from db import crud
 from db.database import get_db
 
 logger = logging.getLogger(__name__)
+
+
+async def update_resume_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Обрабатывает нажатие кнопки "Обновить резюме".
+    Переводит диалог в состояние ожидания нового резюме.
+    """
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text(messages.ASK_FOR_RESUME, reply_markup=keyboards.cancel_keyboard())
+    return AWAITING_RESUME_UPLOAD
 
 
 async def upload_new_vacancy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -64,17 +75,22 @@ async def on_vacancy_selected(update: Update, context: ContextTypes.DEFAULT_TYPE
     db = next(db_session_gen)
     try:
         user = crud.get_or_create_user(db, chat_id=chat_id)
+        resume = crud.get_user_resume(db, user_id=user.id)
         vacancies = crud.get_user_vacancies(db, user_id=user.id)
 
         await query.edit_message_text(
             messages.MAIN_MENU_MESSAGE.format(vacancy_count=len(vacancies)),
-            reply_markup=keyboards.main_menu_keyboard(len(vacancies))
+            reply_markup=keyboards.main_menu_keyboard(
+                vacancy_count=len(vacancies),
+                has_resume=resume is not None
+            )
         )
         return MAIN_MENU
     finally:
         db.close()
 
 # --- Экспортируемые обработчики ---
+update_resume_handler = CallbackQueryHandler(update_resume_request, pattern="^update_resume$")
 upload_vacancy_handler = CallbackQueryHandler(upload_new_vacancy, pattern="^upload_vacancy$")
 select_vacancy_handler = CallbackQueryHandler(select_vacancy, pattern="^select_vacancy$")
 vacancy_selected_handler = CallbackQueryHandler(on_vacancy_selected, pattern="^vacancy_select_")
