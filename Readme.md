@@ -36,3 +36,7 @@
 
 5. Отправить изменения в репо
    git push
+
+## Работа с миграциями alembic
+
+1. alembic upgrade head

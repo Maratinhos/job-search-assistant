@@ -31,10 +31,14 @@ class GenAPIProvider:
     def _get_completion(self, prompt: str) -> dict:
         """
         Отправляет синхронный запрос к API gen-api.ru, логирует ответ и пытается
-        извлечь из него JSON, в том числе из вложенных структур.
+        извлечь из него JSON.
         """
         logger.info(f"Отправка запроса к Gen-API. Промпт: {prompt[:150]}...")
-        payload = {"is_sync": True, "model": "gpt-5-mini", "messages": [{"role": "user", "content": prompt}]}
+        payload = {
+            "is_sync": True,
+            "model": "gpt-5-mini",
+            "messages": [{"role": "user", "content": prompt}],
+        }
 
         try:
             response = requests.post(self.API_URL, json=payload, headers=self.headers)
@@ -44,27 +48,19 @@ class GenAPIProvider:
 
             try:
                 data = response.json()
-
-                # NEW: Try to extract from the deeply nested structure first
-                try:
-                    content_str = data['response'][0]['message']['content']
-                except (KeyError, IndexError, TypeError):
-                    content_str = None
-
-                # Fallback to the old logic if the new structure is not found
-                if not content_str:
-                    content_str = data.get("result", {}).get("text") or data.get("text")
-
+                content_str = data.get("result", {}).get("text") or data.get("text")
                 if isinstance(content_str, str):
                     match = re.search(r'\{.*\}', content_str, re.DOTALL)
                     if match:
                         json_str = match.group(0)
                         try:
+                            # Строго пытаемся распарсить как JSON
                             return json.loads(json_str)
                         except json.JSONDecodeError as e:
                             logger.error(f"Не удалось распарсить как JSON извлеченную строку: {json_str}. Ошибка: {e}")
-                            return data # Return original data on parsing error
-                return data # Return original data if no content string found
+                            # Не получилось? Возвращаем исходный dict, пусть обработчик решает.
+                            return data
+                return data
 
             except requests.exceptions.JSONDecodeError:
                 logger.warning(f"Ответ не является валидным JSON. Попытка найти JSON в сыром тексте.")

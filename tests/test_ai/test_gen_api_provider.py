@@ -96,22 +96,3 @@ def test_failure_api_request_exception(mock_post, provider):
 
     assert "RequestException" in result["error"]
     assert result["is_vacancy"] is False
-
-@patch('requests.post')
-def test_success_deeply_nested_json(mock_post, provider):
-    """Тест: AI возвращает JSON в глубоко вложенной структуре, как в логах."""
-    api_response_json = {
-        "response": [{
-            "message": {
-                "content": '{"is_vacancy": true, "title": "Software Engineer"}'
-            }
-        }]
-    }
-    mock_post.return_value = mock_response(
-        text_content=json.dumps(api_response_json),
-        json_content=api_response_json
-    )
-
-    result = provider._get_completion("prompt")
-
-    assert result == EXPECTED_PARSED_JSON
