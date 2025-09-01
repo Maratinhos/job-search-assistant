@@ -37,6 +37,14 @@
 5. Отправить изменения в репо
    git push
 
+
 ## Работа с миграциями alembic
 
+
 1. alembic upgrade head
+
+
+## Работа с тестами
+
+1. Запуск тестов
+   python -m pytest
