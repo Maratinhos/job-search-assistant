@@ -1,33 +1,56 @@
+import pytest
 from ai.providers.mock import MockProvider
 from ai import prompts
 
+# --- Test Cases ---
+test_cases = [
+    (
+        prompts.VERIFY_RESUME_PROMPT.format(text="some text"),
+        '{"is_resume": true, "title": "Mock Resume Title"}',
+        "Resume Verification"
+    ),
+    (
+        prompts.VERIFY_VACANCY_PROMPT.format(text="some text"),
+        '{"is_vacancy": true, "title": "Mock Vacancy Title"}',
+        "Vacancy Verification"
+    ),
+    (
+        prompts.ANALYZE_MATCH_PROMPT.format(resume_text="a", vacancy_text="b"),
+        "Анализ соответствия (MOCK)",
+        "Analysis"
+    ),
+    (
+        prompts.GENERATE_COVER_LETTER_PROMPT.format(resume_text="a", vacancy_text="b"),
+        "Сопроводительное письмо (MOCK)",
+        "Cover Letter"
+    ),
+    (
+        prompts.GENERATE_HR_CALL_PLAN_PROMPT.format(resume_text="a", vacancy_text="b"),
+        "План для созвона с HR (MOCK)",
+        "HR Call Plan"
+    ),
+    (
+        prompts.GENERATE_TECH_INTERVIEW_PLAN_PROMPT.format(resume_text="a", vacancy_text="b"),
+        "План для технического собеседования (MOCK)",
+        "Tech Interview Plan"
+    ),
+]
 
-def test_mock_provider_responses():
+@pytest.mark.parametrize("prompt, expected_response_part, description", test_cases)
+def test_mock_provider_responses(prompt, expected_response_part, description):
     """
     Тестирует, что мок-провайдер возвращает ожидаемые ответы для разных промптов.
     """
     provider = MockProvider()
+    response = provider._get_completion(prompt)
 
-    # Test resume verification
-    resume_prompt = prompts.VERIFY_RESUME_PROMPT.format(text="some text")
-    response = provider._get_completion(resume_prompt)
-    assert response["text"] == '{"is_resume": true, "title": "Mock Resume Title"}'
+    # Для JSON-ответов проверяем точное совпадение, для остальных - вхождение подстроки.
+    if expected_response_part.startswith('{'):
+        assert response["text"] == expected_response_part, f"Failed on: {description}"
+    else:
+        assert expected_response_part in response["text"], f"Failed on: {description}"
 
-    # Test vacancy verification
-    vacancy_prompt = prompts.VERIFY_VACANCY_PROMPT.format(text="some text")
-    response = provider._get_completion(vacancy_prompt)
-    assert response["text"] == '{"is_vacancy": true, "title": "Mock Vacancy Title"}'
-
-    # Test analysis
-    analysis_prompt = prompts.ANALYZE_MATCH_PROMPT.format(
-        resume_text="a", vacancy_text="b"
-    )
-    response = provider._get_completion(analysis_prompt)
-    assert "Анализ соответствия (MOCK)" in response["text"]
-
-    # Test cover letter
-    cover_letter_prompt = prompts.GENERATE_COVER_LETTER_PROMPT.format(
-        resume_text="a", vacancy_text="b"
-    )
-    response = provider._get_completion(cover_letter_prompt)
-    assert "Сопроводительное письмо (MOCK)" in response["text"]
+    # Также проверяем, что 'usage' данные всегда присутствуют
+    assert "usage" in response
+    assert "total_tokens" in response["usage"]
+    assert response["usage"]["total_tokens"] > 0

@@ -1,28 +1,14 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from telegram import Update, Document
+from telegram import Update, Document, File
 from telegram.ext import ContextTypes
 
-from bot.handlers.vacancy import handle_vacancy_file, process_vacancy_text
+from bot.handlers.vacancy import handle_vacancy_file, process_vacancy_text, handle_invalid_vacancy_input
 from bot.handlers.resume import AWAITING_VACANCY_UPLOAD, MAIN_MENU
 from bot import messages, keyboards
 from db import models
 
-@pytest.fixture
-def update_mock():
-    """Фикстура для мока Update."""
-    update = MagicMock(spec=Update)
-    update.effective_chat.id = 12345
-    update.effective_message = AsyncMock()
-    return update
-
-@pytest.fixture
-def context_mock():
-    """Фикстура для мока Context."""
-    context = MagicMock(spec=ContextTypes.DEFAULT_TYPE)
-    context.user_data = {}
-    return context
 
 @pytest.mark.anyio
 @patch('bot.handlers.vacancy.process_vacancy_text', new_callable=AsyncMock)
@@ -38,6 +24,27 @@ async def test_handle_vacancy_file_success(mock_process_vacancy, update_mock, co
         update_mock, context_mock, "Vacancy text", source="vacancy.txt"
     )
 
+
+@pytest.mark.anyio
+async def test_handle_vacancy_file_download_error(update_mock, context_mock):
+    """
+    Тестирует обработку ошибки при скачивании файла вакансии из Telegram.
+    """
+    mock_document = MagicMock(spec=Document)
+    mock_document.file_name = "vacancy.txt"
+
+    mock_file = AsyncMock(spec=File)
+    mock_file.download_as_bytearray.side_effect = Exception("Download failed")
+    mock_document.get_file.return_value = mock_file
+
+    update_mock.message.document = mock_document
+
+    result = await handle_vacancy_file(update_mock, context_mock)
+
+    update_mock.message.reply_text.assert_called_once()
+    assert "ошибка при загрузке файла" in update_mock.message.reply_text.call_args.args[0].lower()
+    assert result == AWAITING_VACANCY_UPLOAD
+
 @pytest.mark.anyio
 @patch('bot.handlers.vacancy.show_main_menu', new_callable=AsyncMock)
 @patch('bot.handlers.vacancy.save_text_to_file', return_value="/fake/path/vacancy.txt")
@@ -50,10 +57,12 @@ async def test_process_vacancy_text_success(
     mock_ai_client = MagicMock()
     mock_ai_client.verify_vacancy.return_value = {
         "text": '{"is_vacancy": true, "title": "Test Vacancy"}',
-        "cost": 0.003,
-        "prompt_tokens": 60,
-        "completion_tokens": 120,
-        "total_tokens": 180,
+        "usage": {
+            "cost": 0.003,
+            "prompt_tokens": 60,
+            "completion_tokens": 120,
+            "total_tokens": 180,
+        }
     }
     mock_get_ai.return_value = mock_ai_client
 
@@ -90,10 +99,12 @@ async def test_process_vacancy_text_ai_fails_verification(
     mock_ai_client = MagicMock()
     mock_ai_client.verify_vacancy.return_value = {
         "text": '{"is_vacancy": false}',
-        "cost": 0.001,
-        "prompt_tokens": 40,
-        "completion_tokens": 10,
-        "total_tokens": 50,
+        "usage": {
+            "cost": 0.001,
+            "prompt_tokens": 40,
+            "completion_tokens": 10,
+            "total_tokens": 50,
+        }
     }
     mock_get_ai.return_value = mock_ai_client
 
@@ -115,3 +126,27 @@ async def test_process_vacancy_text_ai_fails_verification(
     )
     mock_crud.create_vacancy.assert_not_called()
     assert result_state == AWAITING_VACANCY_UPLOAD
+    # Проверяем, что один из вызовов содержал нужное сообщение
+    any_call_had_error_msg = any(
+        "не похож на вакансию" in call.args[0]
+        for call in update_mock.message.reply_text.call_args_list
+    )
+    assert any_call_had_error_msg
+
+
+@pytest.mark.anyio
+async def test_handle_invalid_vacancy_input_photo(update_mock, context_mock):
+    """
+    Тестирует, что бот корректно обрабатывает получение фото
+    в состоянии ожидания вакансии.
+    """
+    update_mock.message.photo = [MagicMock()]
+    update_mock.message.document = None
+    update_mock.message.text = ""
+
+    result = await handle_invalid_vacancy_input(update_mock, context_mock)
+
+    update_mock.message.reply_text.assert_called_once()
+    assert "неверный формат" in update_mock.message.reply_text.call_args.args[0].lower()
+
+    assert result == AWAITING_VACANCY_UPLOAD

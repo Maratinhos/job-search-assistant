@@ -42,10 +42,23 @@ class GenAPIProvider:
             return 0
         return len(self.encoding.encode(text))
 
+    def _create_error_response(self, prompt: str, cost: float = 0.0) -> dict:
+        """Создает стандартизированный ответ об ошибке."""
+        prompt_tokens = self._calculate_tokens(prompt)
+        return {
+            "text": None,
+            "usage": {
+                "cost": cost,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": 0,
+                "total_tokens": prompt_tokens,
+            },
+        }
+
     def _get_completion(self, prompt: str) -> dict:
         """
         Отправляет асинхронный запрос к API gen-api.ru, получает результат
-        и возвращает унифицированный словарь с текстом, стоимостью и токенами.
+        и возвращает унифицированный словарь с текстом и usage.
         """
         logger.info(f"Отправка асинхронного запроса к Gen-API. Промпт: {prompt[:150]}...")
         payload = {
@@ -62,7 +75,7 @@ class GenAPIProvider:
             request_id = initial_data.get("request_id")
             if not request_id:
                 logger.error(f"Не удалось получить request_id из ответа: {initial_data}")
-                return {"text": None, "error": "Failed to get request_id"}
+                return self._create_error_response(prompt)
 
             for attempt in range(self.MAX_POLLING_ATTEMPTS):
                 logger.info(f"Попытка {attempt + 1}/{self.MAX_POLLING_ATTEMPTS}: Проверка статуса для request_id {request_id}")
@@ -87,32 +100,34 @@ class GenAPIProvider:
 
                         return {
                             "text": content,
-                            "cost": float(cost) if cost else 0.0,
-                            "prompt_tokens": prompt_tokens,
-                            "completion_tokens": completion_tokens,
-                            "total_tokens": total_tokens,
-                            "full_response": result_data,
+                            "usage": {
+                                "cost": float(cost) if cost else 0.0,
+                                "prompt_tokens": prompt_tokens,
+                                "completion_tokens": completion_tokens,
+                                "total_tokens": total_tokens,
+                            },
                         }
                     except (KeyError, IndexError, TypeError) as e:
                         logger.error(f"Не удалось извлечь контент из успешного ответа: {e}. Ответ: {result_data}")
-                        return {"text": None, "error": f"Failed to parse successful response: {e}"}
+                        return self._create_error_response(prompt)
 
                 elif status == "failed":
                     logger.error(f"Задача {request_id} провалена. Ответ: {result_data}")
-                    return {"text": None, "error": "AI task failed", "full_response": result_data}
+                    cost = float(result_data.get("cost", 0.0))
+                    return self._create_error_response(prompt, cost=cost)
 
                 elif status != "processing":
                     logger.warning(f"Неизвестный статус задачи {request_id}: {status}")
 
             logger.error(f"Превышено максимальное количество попыток для request_id {request_id}")
-            return {"text": None, "error": "Polling timeout"}
+            return self._create_error_response(prompt)
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Ошибка при запросе к Gen-API: {e}")
-            return {"text": None, "error": f"RequestException: {e}"}
+            return self._create_error_response(prompt)
         except json.JSONDecodeError as e:
             logger.error(f"Ошибка декодирования JSON ответа от Gen-API: {e}")
-            return {"text": None, "error": f"JSONDecodeError: {e}"}
+            return self._create_error_response(prompt)
 
     def verify_text(self, text: str, prompt_template: str) -> dict:
         """

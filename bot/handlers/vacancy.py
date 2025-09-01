@@ -39,13 +39,14 @@ async def process_vacancy_text(update: Update, context: ContextTypes.DEFAULT_TYP
         response = ai_client.verify_vacancy(text)
 
         # 2. Логирование использования AI
+        usage = response.get("usage", {})
         crud.create_ai_usage_log(
             db=db,
             user_id=user.id,
-            prompt_tokens=response.get("prompt_tokens", 0),
-            completion_tokens=response.get("completion_tokens", 0),
-            total_tokens=response.get("total_tokens", 0),
-            cost=response.get("cost", 0.0),
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+            total_tokens=usage.get("total_tokens", 0),
+            cost=usage.get("cost", 0.0),
             action="verify_vacancy",
         )
 
@@ -110,13 +111,18 @@ async def handle_vacancy_file(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(messages.VACANCY_INVALID_FORMAT, reply_markup=keyboards.cancel_keyboard())
         return AWAITING_VACANCY_UPLOAD
 
-    file = await document.get_file()
-    file_content_bytes = await file.download_as_bytearray()
+    try:
+        file = await document.get_file()
+        file_content_bytes = await file.download_as_bytearray()
+    except Exception as e:
+        logger.error(f"Ошибка при загрузке файла вакансии: {e}", exc_info=True)
+        await update.message.reply_text(messages.FILE_DOWNLOAD_ERROR, reply_markup=keyboards.cancel_keyboard())
+        return AWAITING_VACANCY_UPLOAD
 
     try:
         vacancy_text = file_content_bytes.decode("utf-8")
     except UnicodeDecodeError:
-        await update.message.reply_text("Ошибка кодировки файла. Пожалуйста, используйте UTF-8.", reply_markup=keyboards.cancel_keyboard())
+        await update.message.reply_text(messages.FILE_DECODE_ERROR, reply_markup=keyboards.cancel_keyboard())
         return AWAITING_VACANCY_UPLOAD
 
     return await process_vacancy_text(update, context, vacancy_text, source=document.file_name)

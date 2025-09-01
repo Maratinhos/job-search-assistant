@@ -18,11 +18,13 @@ from bot.handlers.resume import (
     resume_file_handler,
     resume_url_handler,
     fallback_resume_handler,
+    handle_invalid_resume_input,
 )
 from bot.handlers.vacancy import (
     vacancy_file_handler,
     vacancy_url_handler,
     fallback_vacancy_handler,
+    handle_invalid_vacancy_input,
 )
 from bot.handlers.analysis import (
     analyze_match_handler,
@@ -56,11 +58,13 @@ def create_application() -> Application:
             AWAITING_RESUME_UPLOAD: [
                 resume_file_handler,
                 resume_url_handler,
+                MessageHandler(filters.PHOTO, handle_invalid_resume_input),
                 fallback_resume_handler,
             ],
             AWAITING_VACANCY_UPLOAD: [
                 vacancy_file_handler,
                 vacancy_url_handler,
+                MessageHandler(filters.PHOTO, handle_invalid_vacancy_input),
                 fallback_vacancy_handler,
             ],
             MAIN_MENU: [
