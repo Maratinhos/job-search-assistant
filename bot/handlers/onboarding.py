@@ -9,16 +9,22 @@ from telegram.ext import (
 )
 
 from bot.handlers.common import cancel, global_fallback_handler
-from bot.handlers.states import AWAITING_RESUME_UPLOAD, MAIN_MENU
+from bot.handlers.states import AWAITING_RESUME_UPLOAD, MAIN_MENU, AWAITING_VACANCY_UPLOAD
 from bot.handlers.resume import (
     resume_file_handler,
     resume_url_handler,
     fallback_resume_handler,
     handle_invalid_resume_input,
 )
+from bot.handlers.vacancy import (
+    vacancy_file_handler,
+    vacancy_url_handler,
+    fallback_vacancy_handler,
+)
 from bot.handlers.start import start
 
 logger = logging.getLogger(__name__)
+
 
 def onboarding_handler() -> ConversationHandler:
     """
@@ -32,6 +38,11 @@ def onboarding_handler() -> ConversationHandler:
                 resume_url_handler,
                 MessageHandler(filters.PHOTO, handle_invalid_resume_input),
                 fallback_resume_handler,
+            ],
+            AWAITING_VACANCY_UPLOAD: [
+                vacancy_file_handler,
+                vacancy_url_handler,
+                fallback_vacancy_handler,
             ],
         },
         fallbacks=[

@@ -10,7 +10,7 @@ from db.database import get_db
 from db import crud
 from bot import messages, keyboards
 from scraper.hh_scraper import scrape_hh_url
-from bot.handlers.states import AWAITING_RESUME_UPLOAD, MAIN_MENU
+from bot.handlers.states import AWAITING_RESUME_UPLOAD, MAIN_MENU, AWAITING_VACANCY_UPLOAD
 from bot.handlers.main_menu_helpers import show_main_menu
 from services.document_service import process_document
 
@@ -41,8 +41,15 @@ async def _process_and_reply(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
         if success:
             await message.reply_text(messages.RESUME_UPLOADED_SUCCESS)
-            await show_main_menu(update, context)
-            return MAIN_MENU
+
+            # После успешной загрузки резюме, проверяем наличие вакансий
+            vacancies = crud.get_user_vacancies(db, user_id=user.id)
+            if not vacancies:
+                await message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard())
+                return AWAITING_VACANCY_UPLOAD
+            else:
+                await show_main_menu(update, context)
+                return MAIN_MENU
         else:
             await message.reply_text(messages.RESUME_VERIFICATION_FAILED)
             await message.reply_text(messages.ASK_FOR_RESUME, reply_markup=keyboards.cancel_keyboard())
