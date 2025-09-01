@@ -9,6 +9,7 @@ from bot import messages
 from db import crud
 from db.database import get_db
 from ai.client import get_ai_client
+from ai.actions import ACTION_REGISTRY
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,11 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             try:
                 with open(cached_result.file_path, 'r', encoding='utf-8') as f:
                     response_text = f.read()
-                header = _get_header_for_action(action)
+                action_details = ACTION_REGISTRY.get(action)
+                if not action_details:
+                    await query.message.reply_text(text=messages.NOT_IMPLEMENTED)
+                    return MAIN_MENU
+                header = action_details["response_header"]
                 message_text = f"{header}\n\n{response_text}"
                 message_text_parts = [message_text[i:i+4000] for i in range(0, len(message_text), 4000)]
                 for message_text_part in message_text_parts:
@@ -72,7 +77,7 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         ai_client = get_ai_client()
 
         # Вызов AI и логирование
-        response = _call_ai_for_action(ai_client, action, resume_text, vacancy_text)
+        response, header = _call_ai_for_action(ai_client, action, resume_text, vacancy_text)
         if not response:
             await query.message.reply_text(text=messages.NOT_IMPLEMENTED)
             return MAIN_MENU
@@ -86,8 +91,6 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             if "error" in response:
                 await query.message.reply_text(text=messages.ERROR_MESSAGE)
             return MAIN_MENU
-
-        header = _get_header_for_action(action)
 
         # Сохранение результата анализа
         analysis_dir = "storage/analysis_results"
@@ -133,28 +136,25 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     return MAIN_MENU
 
 
-def _get_header_for_action(action: str) -> str:
-    """Возвращает заголовок в зависимости от действия."""
-    headers = {
-        "analyze_match": messages.ANALYSIS_COMPLETE,
-        "generate_letter": messages.COVER_LETTER_COMPLETE,
-        "generate_hr_plan": messages.HR_CALL_PLAN_COMPLETE,
-        "generate_tech_plan": messages.TECH_INTERVIEW_PLAN_COMPLETE,
-    }
-    return headers.get(action, "Результат готов")
+def _call_ai_for_action(ai_client, action: str, resume_text: str, vacancy_text: str) -> tuple:
+    """
+    Вызывает соответствующий метод AI в зависимости от действия, используя ACTION_REGISTRY.
+    Возвращает кортеж (ответ_AI, заголовок_ответа).
+    """
+    action_details = ACTION_REGISTRY.get(action)
+    if not action_details:
+        return None, None
 
+    method_name = action_details["ai_method_name"]
+    header = action_details["response_header"]
 
-def _call_ai_for_action(ai_client, action: str, resume_text: str, vacancy_text: str) -> dict:
-    """Вызывает соответствующий метод AI в зависимости от действия."""
-    if action == "analyze_match":
-        return ai_client.analyze_match(resume_text, vacancy_text)
-    elif action == "generate_letter":
-        return ai_client.generate_cover_letter(resume_text, vacancy_text)
-    elif action == "generate_hr_plan":
-        return ai_client.generate_hr_call_plan(resume_text, vacancy_text)
-    elif action == "generate_tech_plan":
-        return ai_client.generate_tech_interview_plan(resume_text, vacancy_text)
-    return {}
+    method_to_call = getattr(ai_client, method_name, None)
+    if not method_to_call:
+        return None, None
+
+    response = method_to_call(resume_text, vacancy_text)
+    return response, header
+
 
 # Создаем обработчики для каждой кнопки, используя лямбда-функцию для передачи названия действия
 analyze_match_handler = CallbackQueryHandler(

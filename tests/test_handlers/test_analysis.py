@@ -16,13 +16,14 @@ from db import models
 @patch('bot.handlers.analysis.get_db')
 async def test_perform_analysis_success(
     mock_get_db, mock_crud, mock_get_ai, mock_open_file, mock_makedirs, mock_uuid,
-    update_mock, context_mock  # Используем фикстуры
+    update_mock, context_mock
 ):
-    """Тестирует успешное выполнение анализа и сохранения результата."""
-    # Настройка моков, специфичная для этого теста
+    """Тестирует успешное выполнение анализа и сохранения результата с использованием ACTION_REGISTRY."""
+    # Настройка моков
     user_id = 1
     resume_id = 10
     vacancy_id = 20
+    action = "analyze_match"
     context_mock.user_data['selected_vacancy_id'] = vacancy_id
 
     mock_db = MagicMock()
@@ -37,9 +38,9 @@ async def test_perform_analysis_success(
     mock_crud.get_vacancy_by_id.return_value = mock_vacancy
     mock_crud.get_analysis_result.return_value = None
 
+    # Настройка мока AI клиента
     mock_ai_client = MagicMock()
-    # Обновляем мок ответа AI в соответствии с новой структурой
-    mock_ai_client.analyze_match.return_value = {
+    mock_ai_response = {
         "text": "This is a test analysis.",
         "usage": {
             "cost": 0.005,
@@ -48,15 +49,23 @@ async def test_perform_analysis_success(
             "total_tokens": 300,
         }
     }
+    # Мокаем метод, который будет вызываться через getattr
+    mock_analyze_method = MagicMock(return_value=mock_ai_response)
+    # Устанавливаем мок-метод как атрибут на мок-клиенте
+    # Это важно, так как код теперь использует getattr(ai_client, "analyze_match")
+    setattr(mock_ai_client, "analyze_match", mock_analyze_method)
+
     mock_get_ai.return_value = mock_ai_client
 
-    action = "analyze_match"
-    # Передаем фикстуры в тестируемую функцию
+    # Вызов тестируемой функции
     await analysis._perform_analysis(update_mock, context_mock, action)
 
     # Проверки
     mock_open_file.assert_any_call("resume.txt", 'r', encoding='utf-8')
     mock_open_file.assert_any_call("vacancy.txt", 'r', encoding='utf-8')
+
+    # Проверяем, что был вызван правильный метод AI
+    mock_analyze_method.assert_called_once_with("file content", "file content")
 
     mock_crud.create_analysis_result.assert_called_once_with(
         mock_db,
@@ -66,7 +75,6 @@ async def test_perform_analysis_success(
         file_path=os.path.join("storage/analysis_results", "test-uuid.txt")
     )
 
-    # Обновляем проверку вызова create_ai_usage_log
     mock_crud.create_ai_usage_log.assert_called_once_with(
         db=mock_db,
         user_id=user_id,
@@ -82,4 +90,6 @@ async def test_perform_analysis_success(
     # Проверяем, что пользователю был отправлен результат
     update_mock.callback_query.message.reply_text.assert_called()
     last_call_args = update_mock.callback_query.message.reply_text.call_args
+    # Проверяем, что заголовок из ACTION_REGISTRY и текст ответа AI присутствуют
+    assert "Анализ завершен:" in last_call_args.kwargs['text']
     assert "This is a test analysis." in last_call_args.kwargs['text']
