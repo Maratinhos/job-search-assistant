@@ -23,9 +23,10 @@ def create_ai_usage_log(
     prompt_tokens: int,
     completion_tokens: int,
     total_tokens: int,
+    cost: float,
+    action: str,
     resume_id: Optional[int] = None,
     vacancy_id: Optional[int] = None,
-    action: Optional[str] = None,
 ) -> models.AIUsageLog:
     """Создает запись о использовании AI."""
     new_log = models.AIUsageLog(
@@ -33,9 +34,10 @@ def create_ai_usage_log(
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         total_tokens=total_tokens,
+        cost=cost,
+        action=action,
         resume_id=resume_id,
         vacancy_id=vacancy_id,
-        action=action,
     )
     db.add(new_log)
     db.commit()
