@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from bot.handlers.menu import update_resume_request, select_vacancy, on_vacancy_selected
-from bot.handlers.states import AWAITING_RESUME_UPLOAD, MAIN_MENU, UPDATE_RESUME
+from bot.handlers.states import SELECTING_VACANCY, MAIN_MENU, UPDATE_RESUME
 from bot import messages, keyboards
 from db import models
 
@@ -45,7 +45,7 @@ async def test_select_vacancy(mock_keyboards, mock_crud, mock_get_db, update_moc
 
     result = await select_vacancy(update_mock, context_mock)
 
-    assert result == MAIN_MENU
+    assert result == SELECTING_VACANCY
     update_mock.callback_query.answer.assert_called_once()
     update_mock.callback_query.edit_message_text.assert_called_once_with(
         messages.CHOOSE_VACANCY_FOR_ACTION,

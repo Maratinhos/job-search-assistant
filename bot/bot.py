@@ -11,7 +11,8 @@ from config import TELEGRAM_BOT_TOKEN
 from bot.handlers.common import cancel, global_fallback_handler
 from bot.handlers.onboarding import onboarding_handler
 from bot.handlers.main_menu import main_menu_handlers
-from bot.handlers.states import MAIN_MENU, UPDATE_RESUME
+from bot.handlers.menu import vacancy_selected_handler
+from bot.handlers.states import MAIN_MENU, UPDATE_RESUME, SELECTING_VACANCY
 
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ def create_main_conv_handler() -> ConversationHandler:
         states={
             MAIN_MENU: main_menu_handlers(),
             UPDATE_RESUME: [onboarding_handler()],
+            SELECTING_VACANCY: [vacancy_selected_handler],
         },
         fallbacks=[
             CallbackQueryHandler(cancel, pattern="^cancel_action$"),
