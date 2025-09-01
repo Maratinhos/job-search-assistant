@@ -10,7 +10,7 @@ from telegram.ext import (
 from config import TELEGRAM_BOT_TOKEN
 from bot.handlers.common import cancel, global_fallback_handler
 from bot.handlers.onboarding import onboarding_handler
-from bot.handlers.main_menu import main_menu_handler
+from bot.handlers.main_menu import main_menu_handlers
 from bot.handlers.states import MAIN_MENU, UPDATE_RESUME
 
 
@@ -24,7 +24,7 @@ def create_main_conv_handler() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[onboarding_handler()],
         states={
-            MAIN_MENU: [main_menu_handler()],
+            MAIN_MENU: main_menu_handlers(),
             UPDATE_RESUME: [onboarding_handler()],
         },
         fallbacks=[
