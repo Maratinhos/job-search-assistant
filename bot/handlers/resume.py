@@ -44,34 +44,25 @@ async def process_resume_text(update: Update, context: ContextTypes.DEFAULT_TYPE
         ai_client = get_ai_client()
         response_data = ai_client.verify_resume(text)
 
-        # 2. Логирование использования AI (адаптировано к разным форматам)
-        # TODO: Рассмотреть возможность унификации формата ответа от AI или добавить поле cost в БД
-        if "usage" in response_data:
-            usage = response_data.get("usage", {})
-            prompt_tokens = usage.get("prompt_tokens", 0)
-            completion_tokens = usage.get("completion_tokens", 0)
-            total_tokens = usage.get("total_tokens", 0)
-        else:
-            # В новом формате нет информации о токенах, логируем нули
-            prompt_tokens, completion_tokens, total_tokens = 0, 0, 0
-
+        # 2. Логирование использования AI
         crud.create_ai_usage_log(
-            db,
+            db=db,
             user_id=user.id,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
+            prompt_tokens=response_data.get("prompt_tokens", 0),
+            completion_tokens=response_data.get("completion_tokens", 0),
+            total_tokens=response_data.get("total_tokens", 0),
+            cost=response_data.get("cost", 0.0),
+            action="verify_resume",
         )
 
+        # 3. Обработка и парсинг ответа
+        response_text = response_data.get("text", "{}")
+        if not response_text or "error" in response_data:
+            logger.error(f"AI verification failed for user {chat_id}. Response: {response_data}")
+            await message.reply_text(messages.RESUME_VERIFICATION_FAILED)
+            await message.reply_text(messages.ASK_FOR_RESUME, reply_markup=keyboards.cancel_keyboard())
+            return AWAITING_RESUME_UPLOAD
         try:
-            # Парсинг JSON из ответа AI (адаптировано к разным форматам)
-            if "response" in response_data:
-                # Новый формат ответа
-                response_text = response_data['response'][0]['message']['content']
-            else:
-                # Старый формат ответа
-                response_text = response_data.get("text", "{}")
-
             # Проверяем, является ли ответ строкой, которую нужно парсить, или уже объектом
             if isinstance(response_text, str):
                 # Очистка от markdown-блоков
@@ -98,17 +89,17 @@ async def process_resume_text(update: Update, context: ContextTypes.DEFAULT_TYPE
             await message.reply_text(messages.ASK_FOR_RESUME, reply_markup=keyboards.cancel_keyboard())
             return AWAITING_RESUME_UPLOAD
 
-        # 3. Сохранение файла
+        # 4. Сохранение файла
         file_path = save_text_to_file(text, "resumes")
         if not file_path:
             await message.reply_text(messages.ERROR_MESSAGE)
             return AWAITING_RESUME_UPLOAD
 
-        # 4. Сохранение резюме в БД
+        # 5. Сохранение резюме в БД
         crud.create_resume(db, user_id=user.id, file_path=file_path, source=source, title=resume_title)
         await message.reply_text(messages.RESUME_UPLOADED_SUCCESS)
 
-        # 5. Переход к следующему шагу - загрузке вакансии
+        # 6. Переход к следующему шагу - загрузке вакансии
         await message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard())
         return AWAITING_VACANCY_UPLOAD
     finally:

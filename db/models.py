@@ -6,6 +6,7 @@ from sqlalchemy import (
     ForeignKey,
     BigInteger,
     DateTime,
+    Float,
 )
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
@@ -74,10 +75,11 @@ class AIUsageLog(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     resume_id = Column(Integer, ForeignKey("resumes.id"), nullable=True)
     vacancy_id = Column(Integer, ForeignKey("vacancies.id"), nullable=True)
-    action = Column(String(255), nullable=True)
+    action = Column(String(255), nullable=False)
     prompt_tokens = Column(Integer, nullable=False)
     completion_tokens = Column(Integer, nullable=False)
     total_tokens = Column(Integer, nullable=False)
+    cost = Column(Float, nullable=True)  # Добавлено поле стоимости
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="ai_usage_logs")

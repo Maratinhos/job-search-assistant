@@ -38,30 +38,39 @@ def test_get_completion_success_flow(mock_post, mock_get, mock_sleep, provider):
     Тест полного успешного сценария:
     1. POST запрос для создания задачи -> request_id
     2. Первый GET запрос -> status: processing
-    3. Второй GET запрос -> status: success с результатом
+    3. Второй GET запрос -> status: success с результатом, стоимостью и токенами
     """
     # Мок для POST запроса
     mock_post.return_value = mock_response(200, {"request_id": REQUEST_ID})
-
+    prompt_text = "some prompt"
     # Моки для GET запросов (сначала processing, потом success)
     mock_get.side_effect = [
         mock_response(200, {"status": "processing"}),
         mock_response(200, {
             "status": "success",
+            "cost": 0.0015,
             "full_response": [{"message": {"content": SUCCESS_CONTENT}}]
         })
     ]
 
-    result = provider._get_completion("some prompt")
+    result = provider._get_completion(prompt_text)
 
-    # Проверки
+    # Проверки вызовов
     assert mock_post.call_count == 1
     assert mock_get.call_count == 2
     expected_get_url = provider.RESULT_URL.format(request_id=REQUEST_ID)
     mock_get.assert_has_calls([call(expected_get_url, headers=provider.headers), call(expected_get_url, headers=provider.headers)])
 
+    # Проверки результата
     assert result["text"] == SUCCESS_CONTENT
+    assert result["cost"] == 0.0015
     assert "error" not in result
+
+    # Проверки токенов
+    # "some prompt" -> 2 токена; SUCCESS_CONTENT (JSON-строка) -> 15 токенов
+    assert result["prompt_tokens"] == 2
+    assert result["completion_tokens"] == 15
+    assert result["total_tokens"] == 17
 
 @patch('time.sleep', return_value=None)
 @patch('requests.get')

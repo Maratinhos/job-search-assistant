@@ -39,31 +39,36 @@ async def process_vacancy_text(update: Update, context: ContextTypes.DEFAULT_TYP
         response = ai_client.verify_vacancy(text)
 
         # 2. Логирование использования AI
-        usage = response.get("usage", {})
         crud.create_ai_usage_log(
-            db,
+            db=db,
             user_id=user.id,
-            prompt_tokens=usage.get("prompt_tokens", 0),
-            completion_tokens=usage.get("completion_tokens", 0),
-            total_tokens=usage.get("total_tokens", 0),
+            prompt_tokens=response.get("prompt_tokens", 0),
+            completion_tokens=response.get("completion_tokens", 0),
+            total_tokens=response.get("total_tokens", 0),
+            cost=response.get("cost", 0.0),
+            action="verify_vacancy",
         )
 
-        try:
-            # Извлекаем основной контент, который может быть строкой или уже dict
-            content = response.get("text", "{}")
+        # 3. Обработка ответа
+        response_text = response.get("text", "{}")
+        if not response_text or "error" in response:
+            logger.error(f"AI verification failed for user {chat_id}. Response: {response}")
+            await message.reply_text(messages.VACANCY_VERIFICATION_FAILED)
+            await message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard())
+            return AWAITING_VACANCY_UPLOAD
 
-            # Проверяем, является ли ответ строкой, которую нужно парсить
-            if isinstance(content, str):
+        try:
+            # Парсинг JSON из ответа AI
+            if isinstance(response_text, str):
                 # Очистка от markdown-блоков
-                content = content.strip()
-                if content.startswith("```json"):
-                    content = content[7:-4].strip()
-                elif content.startswith("```"):
-                    content = content[3:-3].strip()
-                response_json = json.loads(content)
+                response_text = response_text.strip()
+                if response_text.startswith("```json"):
+                    response_text = response_text[7:-4].strip()
+                elif response_text.startswith("```"):
+                    response_text = response_text[3:-3].strip()
+                response_json = json.loads(response_text)
             else:
-                # Если это не строка, предполагаем, что это уже готовый dict
-                response_json = content
+                response_json = response_text
 
             is_vacancy = response_json.get("is_vacancy", False)
             title = response_json.get("title")
@@ -78,7 +83,7 @@ async def process_vacancy_text(update: Update, context: ContextTypes.DEFAULT_TYP
             await message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard())
             return AWAITING_VACANCY_UPLOAD
 
-        # 3. Сохранение файла
+        # 4. Сохранение файла
         file_path = save_text_to_file(text, "vacancies")
         if not file_path:
             await message.reply_text(messages.ERROR_MESSAGE)

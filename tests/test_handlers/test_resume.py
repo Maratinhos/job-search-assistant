@@ -22,14 +22,17 @@ async def test_process_resume_text_success(
     mock_get_db, mock_save_text, mock_crud, mock_get_ai_client
 ):
     """
-    Тестирует успешный сценарий обработки текста резюме.
+    Тестирует успешный сценарий обработки текста резюме, включая логирование.
     """
     # --- Mocks Setup ---
     # AI Client
     mock_ai_client = MagicMock()
     mock_ai_client.verify_resume.return_value = {
         "text": '{"is_resume": true, "title": "Senior Python Developer"}',
-        "usage": {"total_tokens": 100}
+        "cost": 0.002,
+        "prompt_tokens": 50,
+        "completion_tokens": 150,
+        "total_tokens": 200,
     }
     mock_get_ai_client.return_value = mock_ai_client
 
@@ -56,8 +59,16 @@ async def test_process_resume_text_success(
     # DB user was fetched
     mock_crud.get_or_create_user.assert_called_once_with(mock_db, chat_id=123)
 
-    # AI usage was logged
-    mock_crud.create_ai_usage_log.assert_called_once()
+    # AI usage was logged correctly
+    mock_crud.create_ai_usage_log.assert_called_once_with(
+        db=mock_db,
+        user_id=mock_user.id,
+        prompt_tokens=50,
+        completion_tokens=150,
+        total_tokens=200,
+        cost=0.002,
+        action="verify_resume",
+    )
 
     # File was saved
     mock_save_text.assert_called_once_with("resume text", "resumes")
@@ -80,7 +91,11 @@ async def test_process_resume_text_success(
 
 @pytest.mark.anyio
 @patch('bot.handlers.resume.get_ai_client')
-async def test_process_resume_text_verification_failed(mock_get_ai_client):
+@patch('bot.handlers.resume.crud')
+@patch('bot.handlers.resume.get_db')
+async def test_process_resume_text_verification_failed(
+    mock_get_db, mock_crud, mock_get_ai_client
+):
     """
     Тестирует сценарий, когда AI не подтверждает, что текст является резюме.
     """
@@ -88,65 +103,18 @@ async def test_process_resume_text_verification_failed(mock_get_ai_client):
     mock_ai_client = MagicMock()
     mock_ai_client.verify_resume.return_value = {
         "text": '{"is_resume": false, "title": null}',
-        "usage": {"total_tokens": 50}
+        "cost": 0.001,
+        "prompt_tokens": 30,
+        "completion_tokens": 20,
+        "total_tokens": 50,
     }
     mock_get_ai_client.return_value = mock_ai_client
 
-    update = AsyncMock(spec=Update)
-    update.effective_chat.id = 123
-    update.effective_message = AsyncMock(spec=Message)
-
-    context = MagicMock(spec=ContextTypes.DEFAULT_TYPE)
-
-    # --- Call ---
-    with patch('bot.handlers.resume.get_db'), patch('bot.handlers.resume.crud'):
-        result = await process_resume_text(update, context, "not a resume", "test")
-
-    # --- Assertions ---
-    assert result == AWAITING_RESUME_UPLOAD
-    # Check that the user is informed about the failure
-    assert "не похож на резюме" in update.effective_message.reply_text.call_args_list[1].args[0]
-
-
-@pytest.mark.anyio
-@patch('bot.handlers.resume.get_ai_client')
-@patch('bot.handlers.resume.crud')
-@patch('bot.handlers.resume.save_text_to_file', return_value="some/path/resume.txt")
-@patch('bot.handlers.resume.get_db')
-async def test_process_resume_text_new_ai_format(
-    mock_get_db, mock_save_text, mock_crud, mock_get_ai_client
-):
-    """
-    Тестирует успешный сценарий обработки текста резюме с новым форматом ответа от AI.
-    """
-    # --- Mocks Setup ---
-    # AI Client
-    mock_ai_client = MagicMock()
-    # This is the response format provided by the user
-    mock_ai_client.verify_resume.return_value = {
-        'request_id': 24075135,
-        'model': 'gpt-5',
-        'cost': 0.2593,
-        'response': [{
-            'logprobs': None,
-            'finish_reason': 'stop',
-            'native_finish_reason': 'completed',
-            'index': 0,
-            'message': {
-                'role': 'assistant',
-                'content': '{"is_resume": true, "title": "Senior BI Analyst"}'
-            }
-        }]
-    }
-    mock_get_ai_client.return_value = mock_ai_client
-
-    # Database
     mock_db = MagicMock()
     mock_user = models.User(id=1, chat_id=123)
     mock_crud.get_or_create_user.return_value = mock_user
     mock_get_db.return_value = iter([mock_db])
 
-    # Telegram Update
     update = AsyncMock(spec=Update)
     update.effective_chat.id = 123
     update.effective_message = AsyncMock(spec=Message)
@@ -154,17 +122,22 @@ async def test_process_resume_text_new_ai_format(
     context = MagicMock(spec=ContextTypes.DEFAULT_TYPE)
 
     # --- Call ---
-    result = await process_resume_text(update, context, "resume text", "test_source")
+    result = await process_resume_text(update, context, "not a resume", "test")
 
     # --- Assertions ---
-    # Resume was created in DB with the correct title
-    mock_crud.create_resume.assert_called_once_with(
-        mock_db,
+    # Log should still be created
+    mock_crud.create_ai_usage_log.assert_called_once_with(
+        db=mock_db,
         user_id=mock_user.id,
-        file_path="some/path/resume.txt",
-        source="test_source",
-        title="Senior BI Analyst"
+        prompt_tokens=30,
+        completion_tokens=20,
+        total_tokens=50,
+        cost=0.001,
+        action="verify_resume",
     )
+    # Check that resume was NOT created
+    mock_crud.create_resume.assert_not_called()
 
-    # Correct state is returned
-    assert result == AWAITING_VACANCY_UPLOAD
+    assert result == AWAITING_RESUME_UPLOAD
+    # Check that the user is informed about the failure
+    assert "не похож на резюме" in update.effective_message.reply_text.call_args_list[1].args[0]

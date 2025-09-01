@@ -86,14 +86,15 @@ def test_create_ai_usage_log_with_relations(db_session):
     vacancy = crud.create_vacancy(db_session, user_id=user.id, title="V", file_path="v.txt", source="s")
 
     log = crud.create_ai_usage_log(
-        db_session,
+        db=db_session,
         user_id=user.id,
         prompt_tokens=10,
         completion_tokens=20,
         total_tokens=30,
+        cost=0.01,
+        action="test_action",
         resume_id=resume.id,
         vacancy_id=vacancy.id,
-        action="test_action",
     )
 
     assert log.id is not None

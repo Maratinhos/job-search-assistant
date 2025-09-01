@@ -106,16 +106,16 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         )
 
         # Логирование использования AI
-        usage = response.get("usage", {})
         crud.create_ai_usage_log(
-            db,
+            db=db,
             user_id=user.id,
-            prompt_tokens=usage.get("prompt_tokens", 0),
-            completion_tokens=usage.get("completion_tokens", 0),
-            total_tokens=usage.get("total_tokens", 0),
+            prompt_tokens=response.get("prompt_tokens", 0),
+            completion_tokens=response.get("completion_tokens", 0),
+            total_tokens=response.get("total_tokens", 0),
+            cost=response.get("cost", 0.0),
+            action=action,
             resume_id=resume.id,
             vacancy_id=vacancy.id,
-            action=action,
         )
 
         message_text = f"{header}\n\n{response_text}"

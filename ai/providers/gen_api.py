@@ -2,6 +2,7 @@ import logging
 import requests
 import time
 import json
+import tiktoken
 from config import GEN_API_KEY
 
 logger = logging.getLogger(__name__)
@@ -27,12 +28,24 @@ class GenAPIProvider:
             "Accept": "application/json",
             "Authorization": f"Bearer {self.api_key}",
         }
+        # Инициализация кодировщика токенов
+        try:
+            self.encoding = tiktoken.get_encoding("cl100k_base")
+        except Exception as e:
+            logger.error(f"Не удалось инициализировать кодировщик tiktoken: {e}")
+            self.encoding = None
         logger.info("Инициализирован Gen-API провайдер.")
+
+    def _calculate_tokens(self, text: str) -> int:
+        """Подсчитывает количество токенов в тексте."""
+        if not self.encoding or not text:
+            return 0
+        return len(self.encoding.encode(text))
 
     def _get_completion(self, prompt: str) -> dict:
         """
-        Отправляет асинхронный запрос к API gen-api.ru и получает результат
-        через long-polling.
+        Отправляет асинхронный запрос к API gen-api.ru, получает результат
+        и возвращает унифицированный словарь с текстом, стоимостью и токенами.
         """
         logger.info(f"Отправка асинхронного запроса к Gen-API. Промпт: {prompt[:150]}...")
         payload = {
@@ -41,7 +54,6 @@ class GenAPIProvider:
         }
 
         try:
-            # 1. Отправляем начальный запрос на создание задачи
             initial_response = requests.post(self.API_URL, json=payload, headers=self.headers)
             initial_response.raise_for_status()
             initial_data = initial_response.json()
@@ -52,7 +64,6 @@ class GenAPIProvider:
                 logger.error(f"Не удалось получить request_id из ответа: {initial_data}")
                 return {"text": None, "error": "Failed to get request_id"}
 
-            # 2. Опрашиваем статус задачи
             for attempt in range(self.MAX_POLLING_ATTEMPTS):
                 logger.info(f"Попытка {attempt + 1}/{self.MAX_POLLING_ATTEMPTS}: Проверка статуса для request_id {request_id}")
                 time.sleep(self.POLLING_INTERVAL)
@@ -67,9 +78,21 @@ class GenAPIProvider:
                 if status == "success":
                     logger.info(f"Задача {request_id} успешно выполнена. Ответ: {result_data}")
                     try:
-                        # Извлекаем основной текстовый контент
                         content = result_data["full_response"][0]["message"]["content"]
-                        return {"text": content, "full_response": result_data}
+                        cost = result_data.get("cost", 0.0)
+
+                        prompt_tokens = self._calculate_tokens(prompt)
+                        completion_tokens = self._calculate_tokens(content)
+                        total_tokens = prompt_tokens + completion_tokens
+
+                        return {
+                            "text": content,
+                            "cost": float(cost) if cost else 0.0,
+                            "prompt_tokens": prompt_tokens,
+                            "completion_tokens": completion_tokens,
+                            "total_tokens": total_tokens,
+                            "full_response": result_data,
+                        }
                     except (KeyError, IndexError, TypeError) as e:
                         logger.error(f"Не удалось извлечь контент из успешного ответа: {e}. Ответ: {result_data}")
                         return {"text": None, "error": f"Failed to parse successful response: {e}"}

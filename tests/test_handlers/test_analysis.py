@@ -45,21 +45,35 @@ async def test_perform_analysis_success(mock_get_db, mock_crud, mock_get_ai, moc
     mock_ai_client = MagicMock()
     mock_ai_client.analyze_match.return_value = {
         "text": "This is a test analysis.",
-        "usage": {"total_tokens": 15}
+        "cost": 0.005,
+        "prompt_tokens": 100,
+        "completion_tokens": 200,
+        "total_tokens": 300,
     }
     mock_get_ai.return_value = mock_ai_client
 
-    await analysis._perform_analysis(mock_update, mock_context, "analyze_match")
+    action = "analyze_match"
+    await analysis._perform_analysis(mock_update, mock_context, action)
 
     mock_open_file.assert_any_call("resume.txt", 'r', encoding='utf-8')
+    mock_open_file.assert_any_call("vacancy.txt", 'r', encoding='utf-8')
 
-    # FIX: Pass 'db' as a positional argument to match the actual call
     mock_crud.create_analysis_result.assert_called_once_with(
         mock_db,
         resume_id=resume_id,
         vacancy_id=vacancy_id,
-        action_type="analyze_match",
-            file_path=os.path.join("storage", "analysis_results", "test-uuid.txt")
+        action_type=action,
+        file_path=os.path.join("storage/analysis_results", "test-uuid.txt")
     )
 
-    mock_crud.create_ai_usage_log.assert_called_once()
+    mock_crud.create_ai_usage_log.assert_called_once_with(
+        db=mock_db,
+        user_id=user_id,
+        prompt_tokens=100,
+        completion_tokens=200,
+        total_tokens=300,
+        cost=0.005,
+        action=action,
+        resume_id=resume_id,
+        vacancy_id=vacancy_id,
+    )
