@@ -15,8 +15,8 @@ from bot.handlers.analysis import (
 )
 from bot.handlers.common import cancel, global_fallback_handler
 from bot.handlers.states import MAIN_MENU, UPDATE_RESUME
-from bot.handlers.menu import update_resume_handler
-from bot.handlers.vacancy_management import vacancy_handler
+from bot.handlers.menu import select_vacancy_handler, update_resume_handler
+from bot.handlers.vacancy_management import vacancy_upload_handler
 
 logger = logging.getLogger(__name__)
 
@@ -31,5 +31,6 @@ def main_menu_handlers() -> list:
         generate_hr_plan_handler,
         generate_tech_plan_handler,
         update_resume_handler,
-        vacancy_handler(),
+        select_vacancy_handler,
+        vacancy_upload_handler(),
     ]

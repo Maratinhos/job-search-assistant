@@ -7,6 +7,7 @@ from bot.handlers.states import (
     AWAITING_VACANCY_UPLOAD,
     MAIN_MENU,
     UPDATE_RESUME,
+    SELECTING_VACANCY,
 )
 from db import crud
 from db.database import get_db
@@ -63,7 +64,7 @@ async def select_vacancy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             messages.CHOOSE_VACANCY_FOR_ACTION,
             reply_markup=keyboards.vacancy_selection_keyboard(vacancies)
         )
-        return MAIN_MENU  # Остаемся в том же состоянии, но с другой клавиатурой
+        return SELECTING_VACANCY
     finally:
         db.close()
 

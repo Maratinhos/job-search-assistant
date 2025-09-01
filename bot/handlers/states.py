@@ -4,4 +4,5 @@
     AWAITING_VACANCY_UPLOAD,
     MAIN_MENU,
     UPDATE_RESUME,
-) = range(4)
+    SELECTING_VACANCY,
+) = range(5)
