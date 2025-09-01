@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes
 from bot import messages, keyboards
 from db import crud
 from db.database import get_db
-from .resume import AWAITING_RESUME_UPLOAD
+from .states import AWAITING_RESUME_UPLOAD
 
 logger = logging.getLogger(__name__)
 
