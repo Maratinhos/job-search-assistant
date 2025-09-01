@@ -8,7 +8,7 @@ from telegram.ext import (
     filters,
 )
 
-from .resume import MAIN_MENU, AWAITING_VACANCY_UPLOAD
+from bot.handlers.states import MAIN_MENU, AWAITING_VACANCY_UPLOAD
 from .main_menu_helpers import show_main_menu
 from bot import messages, keyboards
 from db import crud
