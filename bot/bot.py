@@ -17,17 +17,11 @@ from bot.handlers.states import MAIN_MENU, UPDATE_RESUME
 logger = logging.getLogger(__name__)
 
 
-def create_application() -> Application:
+def create_main_conv_handler() -> ConversationHandler:
     """
-    Создает и настраивает экземпляр приложения Telegram с вложенными ConversationHandler.
+    Создает и возвращает главный ConversationHandler, управляющий диалогом.
     """
-    if not TELEGRAM_BOT_TOKEN:
-        raise ValueError("Токен TELEGRAM_BOT_TOKEN не найден в .env файле!")
-
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-
-    # Главный обработчик диалога, который управляет всем состоянием бота
-    conv_handler = ConversationHandler(
+    return ConversationHandler(
         entry_points=[onboarding_handler()],
         states={
             MAIN_MENU: [main_menu_handler()],
@@ -42,6 +36,16 @@ def create_application() -> Application:
         allow_reentry=True,
     )
 
+
+def create_application() -> Application:
+    """
+    Создает и настраивает экземпляр приложения Telegram с вложенными ConversationHandler.
+    """
+    if not TELEGRAM_BOT_TOKEN:
+        raise ValueError("Токен TELEGRAM_BOT_TOKEN не найден в .env файле!")
+
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    conv_handler = create_main_conv_handler()
     application.add_handler(conv_handler)
 
     return application
