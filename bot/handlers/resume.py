@@ -3,7 +3,6 @@ import json
 from telegram import Update
 from telegram.ext import (
     ContextTypes,
-    ConversationHandler,
     MessageHandler,
     filters,
 )
@@ -14,15 +13,11 @@ from bot import messages, keyboards
 from ai.client import get_ai_client
 from scraper.hh_scraper import scrape_hh_url
 from bot.file_utils import save_text_to_file
+from bot.handlers.states import AWAITING_RESUME_UPLOAD, MAIN_MENU
+from bot.handlers.main_menu_helpers import show_main_menu
+
 
 logger = logging.getLogger(__name__)
-
-# Определяем состояния для ConversationHandler
-(
-    AWAITING_RESUME_UPLOAD,
-    AWAITING_VACANCY_UPLOAD,
-    MAIN_MENU
-) = range(3)
 
 
 # --- Вспомогательная функция для обработки текста резюме ---
@@ -100,9 +95,9 @@ async def process_resume_text(update: Update, context: ContextTypes.DEFAULT_TYPE
         crud.create_resume(db, user_id=user.id, file_path=file_path, source=source, title=resume_title)
         await message.reply_text(messages.RESUME_UPLOADED_SUCCESS)
 
-        # 6. Переход к следующему шагу - загрузке вакансии
-        await message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard())
-        return AWAITING_VACANCY_UPLOAD
+        # 6. Переход в главное меню
+        await show_main_menu(update, context)
+        return MAIN_MENU
     finally:
         db.close()
 

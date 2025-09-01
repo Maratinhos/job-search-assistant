@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes
 from db.database import get_db
 from db import crud
 from bot import messages, keyboards
-from .resume import AWAITING_RESUME_UPLOAD, AWAITING_VACANCY_UPLOAD, MAIN_MENU
+from bot.handlers.states import AWAITING_RESUME_UPLOAD, AWAITING_VACANCY_UPLOAD, MAIN_MENU
 from .main_menu_helpers import show_main_menu
 
 logger = logging.getLogger(__name__)

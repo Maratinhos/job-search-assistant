@@ -3,7 +3,11 @@ from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
 from bot import messages, keyboards
-from .resume import AWAITING_RESUME_UPLOAD, AWAITING_VACANCY_UPLOAD, MAIN_MENU
+from bot.handlers.states import (
+    AWAITING_VACANCY_UPLOAD,
+    MAIN_MENU,
+    UPDATE_RESUME,
+)
 from db import crud
 from db.database import get_db
 
@@ -18,7 +22,7 @@ async def update_resume_request(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
     await query.edit_message_text(messages.ASK_FOR_RESUME, reply_markup=keyboards.cancel_keyboard())
-    return AWAITING_RESUME_UPLOAD
+    return UPDATE_RESUME
 
 
 async def upload_new_vacancy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
