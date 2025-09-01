@@ -29,11 +29,11 @@ def test_vacancy_selection_keyboard():
     # Создаем моки вакансий
     mock_vacancy_1 = MagicMock()
     mock_vacancy_1.id = 101
-    mock_vacancy_1.name = "Python Developer"
+    mock_vacancy_1.title = "Python Developer"
 
     mock_vacancy_2 = MagicMock()
     mock_vacancy_2.id = 102
-    mock_vacancy_2.name = "Data Scientist"
+    mock_vacancy_2.title = "Data Scientist"
 
     vacancies = [mock_vacancy_1, mock_vacancy_2]
 

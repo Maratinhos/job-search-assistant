@@ -35,7 +35,7 @@ def vacancy_selection_keyboard(vacancies: List[Vacancy]) -> InlineKeyboardMarkup
     buttons = []
     for vacancy in vacancies:
         # callback_data will be like 'vacancy_select_123'
-        buttons.append([InlineKeyboardButton(vacancy.name, callback_data=f"vacancy_select_{vacancy.id}")])
+        buttons.append([InlineKeyboardButton(vacancy.title, callback_data=f"vacancy_select_{vacancy.id}")])
 
     buttons.append([InlineKeyboardButton("Загрузить новую вакансию", callback_data="upload_vacancy")])
     buttons.append([InlineKeyboardButton("Отмена", callback_data="cancel_action")])
