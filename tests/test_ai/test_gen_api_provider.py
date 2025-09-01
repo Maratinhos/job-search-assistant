@@ -8,12 +8,21 @@ from ai.providers.gen_api import GenAPIProvider
 # --- Test Data ---
 SUCCESS_CONTENT = '{"is_vacancy": true, "title": "Software Engineer"}'
 REQUEST_ID = "test_request_123"
+PROMPT_TEXT = "some prompt"
 
 # --- Fixtures ---
 @pytest.fixture
 def provider():
     """Фикстура для создания экземпляра GenAPIProvider с тестовым ключом."""
-    return GenAPIProvider(api_key="test_key")
+    # Используем мок для tiktoken, чтобы избежать реальной загрузки
+    with patch('tiktoken.get_encoding') as mock_get_encoding:
+        mock_encoder = MagicMock()
+        # "some prompt" -> 2 tokens
+        # SUCCESS_CONTENT -> 15 tokens
+        mock_encoder.encode.side_effect = lambda text: list(range(2)) if text == PROMPT_TEXT else list(range(15))
+        mock_get_encoding.return_value = mock_encoder
+        yield GenAPIProvider(api_key="test_key")
+
 
 # --- Helper Functions ---
 def mock_response(status_code=200, json_content=None, text_content=""):
@@ -38,12 +47,9 @@ def test_get_completion_success_flow(mock_post, mock_get, mock_sleep, provider):
     Тест полного успешного сценария:
     1. POST запрос для создания задачи -> request_id
     2. Первый GET запрос -> status: processing
-    3. Второй GET запрос -> status: success с результатом, стоимостью и токенами
+    3. Второй GET запрос -> status: success с результатом.
     """
-    # Мок для POST запроса
     mock_post.return_value = mock_response(200, {"request_id": REQUEST_ID})
-    prompt_text = "some prompt"
-    # Моки для GET запросов (сначала processing, потом success)
     mock_get.side_effect = [
         mock_response(200, {"status": "processing"}),
         mock_response(200, {
@@ -53,24 +59,18 @@ def test_get_completion_success_flow(mock_post, mock_get, mock_sleep, provider):
         })
     ]
 
-    result = provider._get_completion(prompt_text)
+    result = provider._get_completion(PROMPT_TEXT)
 
-    # Проверки вызовов
     assert mock_post.call_count == 1
     assert mock_get.call_count == 2
     expected_get_url = provider.RESULT_URL.format(request_id=REQUEST_ID)
-    mock_get.assert_has_calls([call(expected_get_url, headers=provider.headers), call(expected_get_url, headers=provider.headers)])
+    mock_get.assert_has_calls([call(expected_get_url, headers=provider.headers)] * 2)
 
-    # Проверки результата
     assert result["text"] == SUCCESS_CONTENT
-    assert result["cost"] == 0.0015
-    assert "error" not in result
-
-    # Проверки токенов
-    # "some prompt" -> 2 токена; SUCCESS_CONTENT (JSON-строка) -> 15 токенов
-    assert result["prompt_tokens"] == 2
-    assert result["completion_tokens"] == 15
-    assert result["total_tokens"] == 17
+    assert result["usage"]["cost"] == 0.0015
+    assert result["usage"]["prompt_tokens"] == 2
+    assert result["usage"]["completion_tokens"] == 15
+    assert result["usage"]["total_tokens"] == 17
 
 @patch('time.sleep', return_value=None)
 @patch('requests.get')
@@ -78,13 +78,19 @@ def test_get_completion_success_flow(mock_post, mock_get, mock_sleep, provider):
 def test_get_completion_failed_status(mock_post, mock_get, mock_sleep, provider):
     """Тест сценария, когда задача завершается со статусом 'failed'."""
     mock_post.return_value = mock_response(200, {"request_id": REQUEST_ID})
-    mock_get.return_value = mock_response(200, {"status": "failed", "error_message": "Something went wrong"})
+    mock_get.return_value = mock_response(200, {
+        "status": "failed",
+        "cost": 0.0001,
+        "error_message": "Something went wrong"
+    })
 
-    result = provider._get_completion("some prompt")
+    result = provider._get_completion(PROMPT_TEXT)
 
     assert result["text"] is None
-    assert result["error"] == "AI task failed"
-    assert "full_response" in result
+    assert result["usage"]["cost"] == 0.0001
+    assert result["usage"]["prompt_tokens"] == 2
+    assert result["usage"]["completion_tokens"] == 0
+    assert result["usage"]["total_tokens"] == 2
 
 @patch('time.sleep', return_value=None)
 @patch('requests.get')
@@ -92,25 +98,27 @@ def test_get_completion_failed_status(mock_post, mock_get, mock_sleep, provider)
 def test_get_completion_polling_timeout(mock_post, mock_get, mock_sleep, provider):
     """Тест сценария, когда превышено максимальное количество попыток опроса."""
     mock_post.return_value = mock_response(200, {"request_id": REQUEST_ID})
-    # Всегда возвращаем 'processing'
     mock_get.return_value = mock_response(200, {"status": "processing"})
 
-    result = provider._get_completion("some prompt")
+    result = provider._get_completion(PROMPT_TEXT)
 
-    assert result["text"] is None
-    assert result["error"] == "Polling timeout"
-    # Проверяем, что было сделано правильное количество попыток
     assert mock_get.call_count == provider.MAX_POLLING_ATTEMPTS
+    assert result["text"] is None
+    assert result["usage"]["cost"] == 0.0
+    assert result["usage"]["prompt_tokens"] == 2
+    assert result["usage"]["total_tokens"] == 2
 
 @patch('requests.post')
 def test_get_completion_initial_post_fails(mock_post, provider):
     """Тест сценария, когда первоначальный POST запрос падает."""
     mock_post.side_effect = requests.exceptions.RequestException("Network Error")
 
-    result = provider._get_completion("some prompt")
+    result = provider._get_completion(PROMPT_TEXT)
 
     assert result["text"] is None
-    assert "RequestException" in result["error"]
+    assert result["usage"]["cost"] == 0.0
+    assert result["usage"]["prompt_tokens"] == 2
+    assert result["usage"]["total_tokens"] == 2
 
 @patch('time.sleep', return_value=None)
 @patch('requests.get')
@@ -120,10 +128,12 @@ def test_get_completion_polling_get_fails(mock_post, mock_get, mock_sleep, provi
     mock_post.return_value = mock_response(200, {"request_id": REQUEST_ID})
     mock_get.side_effect = requests.exceptions.RequestException("Network Error")
 
-    result = provider._get_completion("some prompt")
+    result = provider._get_completion(PROMPT_TEXT)
 
     assert result["text"] is None
-    assert "RequestException" in result["error"]
+    assert result["usage"]["cost"] == 0.0
+    assert result["usage"]["prompt_tokens"] == 2
+    assert result["usage"]["total_tokens"] == 2
 
 @patch('time.sleep', return_value=None)
 @patch('requests.get')
@@ -133,10 +143,12 @@ def test_get_completion_bad_success_response(mock_post, mock_get, mock_sleep, pr
     mock_post.return_value = mock_response(200, {"request_id": REQUEST_ID})
     mock_get.return_value = mock_response(200, {
         "status": "success",
-        "full_response": [{"message": {"wrong_key": "no content here"}}] # Неправильный ключ
+        "full_response": [{"message": {"wrong_key": "no content here"}}]
     })
 
-    result = provider._get_completion("some prompt")
+    result = provider._get_completion(PROMPT_TEXT)
 
     assert result["text"] is None
-    assert "Failed to parse successful response" in result["error"]
+    assert result["usage"]["cost"] == 0.0
+    assert result["usage"]["prompt_tokens"] == 2
+    assert result["usage"]["total_tokens"] == 2

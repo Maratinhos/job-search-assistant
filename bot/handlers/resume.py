@@ -45,13 +45,14 @@ async def process_resume_text(update: Update, context: ContextTypes.DEFAULT_TYPE
         response_data = ai_client.verify_resume(text)
 
         # 2. Логирование использования AI
+        usage = response_data.get("usage", {})
         crud.create_ai_usage_log(
             db=db,
             user_id=user.id,
-            prompt_tokens=response_data.get("prompt_tokens", 0),
-            completion_tokens=response_data.get("completion_tokens", 0),
-            total_tokens=response_data.get("total_tokens", 0),
-            cost=response_data.get("cost", 0.0),
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+            total_tokens=usage.get("total_tokens", 0),
+            cost=usage.get("cost", 0.0),
             action="verify_resume",
         )
 
@@ -114,13 +115,18 @@ async def handle_resume_file(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(messages.RESUME_INVALID_FORMAT, reply_markup=keyboards.cancel_keyboard())
         return AWAITING_RESUME_UPLOAD
 
-    file = await document.get_file()
-    file_content_bytes = await file.download_as_bytearray()
+    try:
+        file = await document.get_file()
+        file_content_bytes = await file.download_as_bytearray()
+    except Exception as e:
+        logger.error(f"Ошибка при загрузке файла резюме: {e}", exc_info=True)
+        await update.message.reply_text(messages.FILE_DOWNLOAD_ERROR, reply_markup=keyboards.cancel_keyboard())
+        return AWAITING_RESUME_UPLOAD
 
     try:
         resume_text = file_content_bytes.decode("utf-8")
     except UnicodeDecodeError:
-        await update.message.reply_text("Ошибка кодировки файла. Пожалуйста, используйте UTF-8.", reply_markup=keyboards.cancel_keyboard())
+        await update.message.reply_text(messages.FILE_DECODE_ERROR, reply_markup=keyboards.cancel_keyboard())
         return AWAITING_RESUME_UPLOAD
 
     return await process_resume_text(update, context, resume_text, source=document.file_name)
