@@ -1,6 +1,4 @@
 import logging
-import re
-import json
 from telegram import Update
 from telegram.ext import (
     ContextTypes,
@@ -13,96 +11,45 @@ from .main_menu_helpers import show_main_menu
 from bot import messages, keyboards
 from db import crud
 from db.database import get_db
-from ai.client import get_ai_client
 from scraper.hh_scraper import scrape_hh_url
-from bot.file_utils import save_text_to_file
+from services.document_service import process_document
 
 logger = logging.getLogger(__name__)
 
 
-async def process_vacancy_text(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, source: str) -> int:
+async def _process_and_reply(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, source: str) -> int:
     """
-    Общая логика для обработки и валидации текста вакансии.
+    Внутренняя функция для вызова сервиса обработки и отправки ответа пользователю.
     """
     chat_id = update.effective_chat.id
     message = update.effective_message
-
     await message.reply_text(messages.VACANCY_PROCESSING)
 
     db_session_gen = get_db()
     db = next(db_session_gen)
     try:
         user = crud.get_or_create_user(db, chat_id=chat_id)
-
-        # 1. Валидация текста с помощью AI
-        ai_client = get_ai_client()
-        response = ai_client.verify_vacancy(text)
-
-        # 2. Логирование использования AI
-        usage = response.get("usage", {})
-        crud.create_ai_usage_log(
+        success, _ = await process_document(
+            update=update,
+            context=context,
             db=db,
             user_id=user.id,
-            prompt_tokens=usage.get("prompt_tokens", 0),
-            completion_tokens=usage.get("completion_tokens", 0),
-            total_tokens=usage.get("total_tokens", 0),
-            cost=usage.get("cost", 0.0),
-            action="verify_vacancy",
+            text=text,
+            source=source,
+            doc_type="vacancy",
         )
 
-        # 3. Обработка ответа
-        response_text = response.get("text", "{}")
-        if not response_text or "error" in response:
-            logger.error(f"AI verification failed for user {chat_id}. Response: {response}")
+        if success:
+            await message.reply_text(messages.VACANCY_UPLOADED_SUCCESS)
+            await show_main_menu(update, context)
+            return MAIN_MENU
+        else:
             await message.reply_text(messages.VACANCY_VERIFICATION_FAILED)
             await message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard())
             return AWAITING_VACANCY_UPLOAD
-
-        try:
-            # Парсинг JSON из ответа AI
-            if isinstance(response_text, str):
-                # Очистка от markdown-блоков
-                response_text = response_text.strip()
-                if response_text.startswith("```json"):
-                    response_text = response_text[7:-4].strip()
-                elif response_text.startswith("```"):
-                    response_text = response_text[3:-3].strip()
-                response_json = json.loads(response_text)
-            else:
-                response_json = response_text
-
-            is_vacancy = response_json.get("is_vacancy", False)
-            title = response_json.get("title")
-
-        except (json.JSONDecodeError, AttributeError, TypeError) as e:
-            logger.error(f"Failed to parse AI response for vacancy: {response}. Error: {e}")
-            is_vacancy = False
-            title = None
-
-        if not is_vacancy:
-            await message.reply_text(messages.VACANCY_VERIFICATION_FAILED)
-            await message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard())
-            return AWAITING_VACANCY_UPLOAD
-
-        # 4. Сохранение файла
-        file_path = save_text_to_file(text, "vacancies")
-        if not file_path:
-            await message.reply_text(messages.ERROR_MESSAGE)
-            return AWAITING_VACANCY_UPLOAD
-
-        # 4. Сохранение вакансии в БД
-        vacancy = crud.create_vacancy(db, user_id=user.id, title=title, file_path=file_path, source=source)
-
-        # Сохраняем ID новой вакансии как выбранной по умолчанию
-        context.user_data['selected_vacancy_id'] = vacancy.id
-
-        await message.reply_text(messages.VACANCY_UPLOADED_SUCCESS)
-
-        # 5. Переход в главное меню
-        await show_main_menu(update, context)
-        return MAIN_MENU
     finally:
         db.close()
+
 
 async def handle_vacancy_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обрабатывает вакансию, загруженную как .txt файл."""
@@ -125,7 +72,7 @@ async def handle_vacancy_file(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(messages.FILE_DECODE_ERROR, reply_markup=keyboards.cancel_keyboard())
         return AWAITING_VACANCY_UPLOAD
 
-    return await process_vacancy_text(update, context, vacancy_text, source=document.file_name)
+    return await _process_and_reply(update, context, vacancy_text, source=document.file_name)
 
 
 async def handle_vacancy_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -140,7 +87,7 @@ async def handle_vacancy_url(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(messages.ERROR_MESSAGE, reply_markup=keyboards.cancel_keyboard())
         return AWAITING_VACANCY_UPLOAD
 
-    return await process_vacancy_text(update, context, vacancy_text, source=url)
+    return await _process_and_reply(update, context, vacancy_text, source=url)
 
 
 async def handle_invalid_vacancy_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
