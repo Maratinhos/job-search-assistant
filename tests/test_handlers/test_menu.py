@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from bot.handlers.menu import update_resume_request, select_vacancy, on_vacancy_selected
-from bot.handlers.resume import AWAITING_RESUME_UPLOAD, MAIN_MENU
+from bot.handlers.states import AWAITING_RESUME_UPLOAD, MAIN_MENU, UPDATE_RESUME
 from bot import messages, keyboards
 from db import models
 
@@ -18,7 +18,7 @@ async def test_update_resume_request(mock_keyboards, update_mock, context_mock):
 
     result = await update_resume_request(update_mock, context_mock)
 
-    assert result == AWAITING_RESUME_UPLOAD
+    assert result == UPDATE_RESUME
     update_mock.callback_query.answer.assert_called_once()
     update_mock.callback_query.edit_message_text.assert_called_once_with(
         messages.ASK_FOR_RESUME,
