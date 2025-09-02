@@ -1,10 +1,12 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch, call
+from telegram.constants import ParseMode
 
 from bot.handlers.start import start
 from bot.handlers.states import AWAITING_RESUME_UPLOAD, AWAITING_VACANCY_UPLOAD, MAIN_MENU
 from db import models
 from bot import messages, keyboards
+
 
 @pytest.mark.anyio
 @patch('bot.handlers.start.keyboards')
@@ -27,8 +29,13 @@ async def test_start_no_resume(mock_get_db, mock_crud, mock_keyboards, update_mo
 
     # --- Assertions ---
     assert result == AWAITING_RESUME_UPLOAD
-    update_mock.message.reply_text.assert_any_call(messages.WELCOME_MESSAGE)
-    update_mock.message.reply_text.assert_any_call(messages.ASK_FOR_RESUME, reply_markup="cancel_keyboard_markup")
+
+    expected_calls = [
+        call(messages.WELCOME_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2),
+        call(messages.ASK_FOR_RESUME, reply_markup="cancel_keyboard_markup", parse_mode=ParseMode.MARKDOWN_V2)
+    ]
+    update_mock.message.reply_text.assert_has_calls(expected_calls, any_order=False)
+
 
 @pytest.mark.anyio
 @patch('bot.handlers.start.keyboards')
@@ -53,9 +60,13 @@ async def test_start_with_resume_no_vacancies(mock_get_db, mock_crud, mock_keybo
 
     # --- Assertions ---
     assert result == AWAITING_VACANCY_UPLOAD
-    expected_message = messages.MAIN_MENU_NO_VACANCIES.format(resume_title="My Resume Title")
-    update_mock.message.reply_text.assert_any_call(expected_message)
-    update_mock.message.reply_text.assert_any_call(messages.ASK_FOR_VACANCY, reply_markup="cancel_keyboard_markup")
+
+    expected_main_menu_message = messages.MAIN_MENU_NO_VACANCIES.format(resume_title="My Resume Title")
+    expected_calls = [
+        call(expected_main_menu_message, parse_mode=ParseMode.MARKDOWN_V2),
+        call(messages.ASK_FOR_VACANCY, reply_markup="cancel_keyboard_markup", parse_mode=ParseMode.MARKDOWN_V2)
+    ]
+    update_mock.message.reply_text.assert_has_calls(expected_calls, any_order=False)
 
 
 @pytest.mark.anyio
@@ -82,4 +93,5 @@ async def test_start_with_resume_and_vacancies(mock_get_db, mock_crud, mock_show
     # --- Assertions ---
     assert result == MAIN_MENU
     assert context_mock.user_data['selected_vacancy_id'] == 1
+    update_mock.message.reply_text.assert_not_called()
     mock_show_main_menu.assert_called_once_with(update_mock, context_mock)
