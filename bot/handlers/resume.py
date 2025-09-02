@@ -1,5 +1,6 @@
 import logging
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.ext import (
     ContextTypes,
     MessageHandler,
@@ -23,7 +24,7 @@ async def _process_and_reply(update: Update, context: ContextTypes.DEFAULT_TYPE,
     """
     chat_id = update.effective_chat.id
     message = update.effective_message
-    await message.reply_text(messages.RESUME_PROCESSING)
+    await message.reply_text(messages.RESUME_PROCESSING, parse_mode=ParseMode.MARKDOWN_V2)
 
     db_session_gen = get_db()
     db = next(db_session_gen)
@@ -40,19 +41,19 @@ async def _process_and_reply(update: Update, context: ContextTypes.DEFAULT_TYPE,
         )
 
         if success:
-            await message.reply_text(messages.RESUME_UPLOADED_SUCCESS)
+            await message.reply_text(messages.RESUME_UPLOADED_SUCCESS, parse_mode=ParseMode.MARKDOWN_V2)
 
             # После успешной загрузки резюме, проверяем наличие вакансий
             vacancies = crud.get_user_vacancies(db, user_id=user.id)
             if not vacancies:
-                await message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard())
+                await message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard(), parse_mode=ParseMode.MARKDOWN_V2)
                 return AWAITING_VACANCY_UPLOAD
             else:
                 await show_main_menu(update, context)
                 return MAIN_MENU
         else:
-            await message.reply_text(messages.RESUME_VERIFICATION_FAILED)
-            await message.reply_text(messages.ASK_FOR_RESUME, reply_markup=keyboards.cancel_keyboard())
+            await message.reply_text(messages.RESUME_VERIFICATION_FAILED, parse_mode=ParseMode.MARKDOWN_V2)
+            await message.reply_text(messages.ASK_FOR_RESUME, reply_markup=keyboards.cancel_keyboard(), parse_mode=ParseMode.MARKDOWN_V2)
             return AWAITING_RESUME_UPLOAD
     finally:
         db.close()
@@ -63,7 +64,7 @@ async def handle_resume_file(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """Обрабатывает резюме, загруженное как .txt файл."""
     document = update.message.document
     if not document or not document.file_name.endswith(".txt"):
-        await update.message.reply_text(messages.RESUME_INVALID_FORMAT, reply_markup=keyboards.cancel_keyboard())
+        await update.message.reply_text(messages.RESUME_INVALID_FORMAT, reply_markup=keyboards.cancel_keyboard(), parse_mode=ParseMode.MARKDOWN_V2)
         return AWAITING_RESUME_UPLOAD
 
     try:
@@ -71,13 +72,13 @@ async def handle_resume_file(update: Update, context: ContextTypes.DEFAULT_TYPE)
         file_content_bytes = await file.download_as_bytearray()
     except Exception as e:
         logger.error(f"Ошибка при загрузке файла резюме: {e}", exc_info=True)
-        await update.message.reply_text(messages.FILE_DOWNLOAD_ERROR, reply_markup=keyboards.cancel_keyboard())
+        await update.message.reply_text(messages.FILE_DOWNLOAD_ERROR, reply_markup=keyboards.cancel_keyboard(), parse_mode=ParseMode.MARKDOWN_V2)
         return AWAITING_RESUME_UPLOAD
 
     try:
         resume_text = file_content_bytes.decode("utf-8")
     except UnicodeDecodeError:
-        await update.message.reply_text(messages.FILE_DECODE_ERROR, reply_markup=keyboards.cancel_keyboard())
+        await update.message.reply_text(messages.FILE_DECODE_ERROR, reply_markup=keyboards.cancel_keyboard(), parse_mode=ParseMode.MARKDOWN_V2)
         return AWAITING_RESUME_UPLOAD
 
     return await _process_and_reply(update, context, resume_text, source=document.file_name)
@@ -88,12 +89,12 @@ async def handle_resume_url(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     url = update.message.text
     # Простая проверка на наличие домена hh.ru в тексте
     if "hh.ru" not in url:
-        await update.message.reply_text(messages.RESUME_INVALID_FORMAT, reply_markup=keyboards.cancel_keyboard())
+        await update.message.reply_text(messages.RESUME_INVALID_FORMAT, reply_markup=keyboards.cancel_keyboard(), parse_mode=ParseMode.MARKDOWN_V2)
         return AWAITING_RESUME_UPLOAD
 
     resume_text = scrape_hh_url(url)
     if not resume_text:
-        await update.message.reply_text(messages.ERROR_MESSAGE, reply_markup=keyboards.cancel_keyboard())
+        await update.message.reply_text(messages.ERROR_MESSAGE, reply_markup=keyboards.cancel_keyboard(), parse_mode=ParseMode.MARKDOWN_V2)
         return AWAITING_RESUME_UPLOAD
 
     return await _process_and_reply(update, context, resume_text, source=url)
@@ -101,7 +102,7 @@ async def handle_resume_url(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def handle_invalid_resume_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обрабатывает некорректный ввод в состоянии ожидания резюме."""
-    await update.message.reply_text(messages.RESUME_INVALID_FORMAT, reply_markup=keyboards.cancel_keyboard())
+    await update.message.reply_text(messages.RESUME_INVALID_FORMAT, reply_markup=keyboards.cancel_keyboard(), parse_mode=ParseMode.MARKDOWN_V2)
     return AWAITING_RESUME_UPLOAD
 
 

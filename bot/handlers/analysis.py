@@ -1,8 +1,9 @@
 import logging
 import os
 import uuid
-from telegram import Update
+from telegram import Update, constants
 from telegram.ext import ContextTypes, CallbackQueryHandler
+from telegram.constants import ParseMode
 
 from .resume import MAIN_MENU
 from bot import messages
@@ -25,10 +26,10 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     vacancy_id = context.user_data.get('selected_vacancy_id')
 
     if not vacancy_id:
-        await query.message.reply_text(text=messages.CHOOSE_VACANCY_FOR_ACTION)
+        await query.message.reply_text(text=messages.CHOOSE_VACANCY_FOR_ACTION, parse_mode=ParseMode.MARKDOWN_V2)
         return MAIN_MENU
 
-    await query.message.reply_text(text="⏳ Выполняю ваш запрос... Это может занять некоторое время.")
+    await query.message.reply_text(text="⏳ Выполняю ваш запрос... Это может занять некоторое время.", parse_mode=ParseMode.MARKDOWN_V2)
 
     db_session_gen = get_db()
     db = next(db_session_gen)
@@ -38,7 +39,7 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         vacancy = crud.get_vacancy_by_id(db, vacancy_id=vacancy_id)
 
         if not resume or not vacancy:
-            await query.message.reply_text(text=messages.ERROR_MESSAGE)
+            await query.message.reply_text(text=messages.ERROR_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2)
             return MAIN_MENU
 
         # Проверяем кэш
@@ -50,13 +51,13 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                     response_text = f.read()
                 action_details = ACTION_REGISTRY.get(action)
                 if not action_details:
-                    await query.message.reply_text(text=messages.NOT_IMPLEMENTED)
+                    await query.message.reply_text(text=messages.NOT_IMPLEMENTED, parse_mode=ParseMode.MARKDOWN_V2)
                     return MAIN_MENU
                 header = action_details["response_header"]
                 message_text = f"{header}\n\n{response_text}"
                 message_text_parts = [message_text[i:i+4000] for i in range(0, len(message_text), 4000)]
                 for message_text_part in message_text_parts:
-                    await query.message.reply_text(text=message_text_part)
+                    await query.message.reply_text(text=message_text_part, parse_mode=ParseMode.MARKDOWN_V2)
                 return MAIN_MENU
             except FileNotFoundError:
                 logger.warning(f"Файл для кэшированного результата не найден: {cached_result.file_path}")
@@ -70,7 +71,7 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 vacancy_text = f.read()
         except FileNotFoundError:
             logger.error(f"Файл резюме или вакансии не найден для пользователя {chat_id}.")
-            await query.message.reply_text(text=messages.ERROR_MESSAGE)
+            await query.message.reply_text(text=messages.ERROR_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2)
             return MAIN_MENU
 
         # Получаем клиент AI
@@ -79,7 +80,7 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         # Вызов AI и логирование
         response, header = _call_ai_for_action(ai_client, action, resume_text, vacancy_text)
         if not response:
-            await query.message.reply_text(text=messages.NOT_IMPLEMENTED)
+            await query.message.reply_text(text=messages.NOT_IMPLEMENTED, parse_mode=ParseMode.MARKDOWN_V2)
             return MAIN_MENU
 
         response_text = response.get("text", "Не удалось получить ответ от AI.")
@@ -89,7 +90,7 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             logger.warning(f"Действие '{action}' не вернуло текст от AI. Ответ: {response}")
             # Отправляем сообщение об ошибке, если его еще не было
             if "error" in response:
-                await query.message.reply_text(text=messages.ERROR_MESSAGE)
+                await query.message.reply_text(text=messages.ERROR_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2)
             return MAIN_MENU
 
         # Сохранение результата анализа
@@ -125,11 +126,11 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         message_text = f"{header}\n\n{response_text}"
         message_text_parts = [message_text[i:i+4000] for i in range(0, len(message_text), 4000)]
         for message_text_part in message_text_parts:
-            await query.message.reply_text(text=message_text_part)
+            await query.message.reply_text(text=message_text_part, parse_mode=ParseMode.MARKDOWN_V2)
 
     except Exception as e:
         logger.error(f"Ошибка во время выполнения действия '{action}' для пользователя {chat_id}: {e}", exc_info=True)
-        await query.message.reply_text(text=messages.ERROR_MESSAGE)
+        await query.message.reply_text(text=messages.ERROR_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2)
     finally:
         db.close()
 
