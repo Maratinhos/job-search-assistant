@@ -6,6 +6,7 @@ from telegram.constants import ParseMode
 from db.database import get_db
 from db import crud
 from bot import messages, keyboards
+from bot.utils import escape_markdown_v2
 from bot.handlers.states import AWAITING_RESUME_UPLOAD, AWAITING_VACANCY_UPLOAD, MAIN_MENU
 from .main_menu_helpers import show_main_menu
 
@@ -30,15 +31,28 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
         # 1. Если нет резюме, просим загрузить
         if not resume:
-            await update.message.reply_text(messages.WELCOME_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2)
-            await update.message.reply_text(messages.ASK_FOR_RESUME, reply_markup=keyboards.cancel_keyboard(), parse_mode=ParseMode.MARKDOWN_V2)
+            await update.message.reply_text(
+                escape_markdown_v2(messages.WELCOME_MESSAGE), parse_mode=ParseMode.MARKDOWN_V2
+            )
+            await update.message.reply_text(
+                escape_markdown_v2(messages.ASK_FOR_RESUME),
+                reply_markup=keyboards.cancel_keyboard(),
+                parse_mode=ParseMode.MARKDOWN_V2,
+            )
             return AWAITING_RESUME_UPLOAD
 
         # 2. Если есть резюме, но нет вакансий
         vacancies = crud.get_user_vacancies(db, user_id=user.id)
         if not vacancies:
-            await update.message.reply_text(messages.MAIN_MENU_NO_VACANCIES.format(resume_title=resume.title), parse_mode=ParseMode.MARKDOWN_V2)
-            await update.message.reply_text(messages.ASK_FOR_VACANCY, reply_markup=keyboards.cancel_keyboard(), parse_mode=ParseMode.MARKDOWN_V2)
+            await update.message.reply_text(
+                escape_markdown_v2(messages.MAIN_MENU_NO_VACANCIES.format(resume_title=resume.title)),
+                parse_mode=ParseMode.MARKDOWN_V2,
+            )
+            await update.message.reply_text(
+                escape_markdown_v2(messages.ASK_FOR_VACANCY),
+                reply_markup=keyboards.cancel_keyboard(),
+                parse_mode=ParseMode.MARKDOWN_V2,
+            )
             return AWAITING_VACANCY_UPLOAD
 
         # 3. Если все есть, переходим в главное меню

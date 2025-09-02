@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch, mock_open
 
 from bot.handlers import analysis
 from db import models
+from bot.utils import escape_markdown_v2
 
 # Теперь мы можем использовать фикстуры update_mock и context_mock из conftest.py
 
@@ -91,5 +92,7 @@ async def test_perform_analysis_success(
     update_mock.callback_query.message.reply_text.assert_called()
     last_call_args = update_mock.callback_query.message.reply_text.call_args
     # Проверяем, что заголовок из ACTION_REGISTRY и текст ответа AI присутствуют
-    assert "Анализ завершен:" in last_call_args.kwargs['text']
-    assert "This is a test analysis." in last_call_args.kwargs['text']
+    escaped_header = escape_markdown_v2("Анализ завершен:")
+    escaped_body = escape_markdown_v2("This is a test analysis.")
+    assert escaped_header in last_call_args.kwargs['text']
+    assert escaped_body in last_call_args.kwargs['text']

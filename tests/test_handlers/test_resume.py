@@ -8,6 +8,7 @@ from bot.handlers.resume import (
 )
 from bot.handlers.states import AWAITING_RESUME_UPLOAD, MAIN_MENU
 from bot import messages
+from bot.utils import escape_markdown_v2
 
 # Фикстуры update_mock и context_mock из conftest.py используются неявно
 
@@ -38,7 +39,10 @@ async def test_handle_resume_file_success(
 
     # --- Asserts ---
     mock_process_document.assert_called_once()
-    assert any(messages.RESUME_UPLOADED_SUCCESS in call.args[0] for call in update_mock.message.reply_text.call_args_list)
+    assert any(
+        escape_markdown_v2(messages.RESUME_UPLOADED_SUCCESS) in call.args[0]
+        for call in update_mock.message.reply_text.call_args_list
+    )
     mock_show_main_menu.assert_called_once()
     assert result == MAIN_MENU
 
@@ -69,7 +73,10 @@ async def test_handle_resume_file_failure(
 
     # --- Asserts ---
     mock_process_document.assert_called_once()
-    assert any(messages.RESUME_VERIFICATION_FAILED in call.args[0] for call in update_mock.message.reply_text.call_args_list)
+    assert any(
+        escape_markdown_v2(messages.RESUME_VERIFICATION_FAILED) in call.args[0]
+        for call in update_mock.message.reply_text.call_args_list
+    )
     assert result == AWAITING_RESUME_UPLOAD
 
 
@@ -109,5 +116,5 @@ async def test_handle_invalid_resume_input(update_mock, context_mock):
     result = await handle_invalid_resume_input(update_mock, context_mock)
 
     update_mock.message.reply_text.assert_called_once()
-    assert messages.RESUME_INVALID_FORMAT in update_mock.message.reply_text.call_args.args[0]
+    assert escape_markdown_v2(messages.RESUME_INVALID_FORMAT) in update_mock.message.reply_text.call_args.args[0]
     assert result == AWAITING_RESUME_UPLOAD
