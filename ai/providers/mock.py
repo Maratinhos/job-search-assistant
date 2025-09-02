@@ -23,7 +23,7 @@ class MockProvider:
             text_response = '{"is_resume": true, "title": "Mock Resume Title"}'
         elif "является ли он описанием вакансии" in prompt:
             text_response = '{"is_vacancy": true, "title": "Mock Vacancy Title"}'
-        elif "Проанализируй соответствие" in prompt:
+        elif "Проанализируй на соответствие" in prompt:
             text_response = "Анализ соответствия (MOCK): Кандидат отлично подходит."
         elif "Напиши сопроводительное письмо" in prompt:
             text_response = "Сопроводительное письмо (MOCK): Уважаемый HR..."
