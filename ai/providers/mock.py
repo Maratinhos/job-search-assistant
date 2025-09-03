@@ -13,13 +13,22 @@ class MockProvider:
         # The key is not used, but we accept it to match the interface.
         logger.info("Инициализирован Mock AI провайдер.")
 
-    def _get_completion(self, prompt: str) -> dict:
+    def _get_completion(self, prompt: str, is_json: bool = False) -> dict:
         """
         Возвращает моковые данные, имитируя ответ от AI.
         """
         logger.info(f"Отправка запроса к Mock AI. Промпт: {prompt[:150]}...")
 
-        if "является ли следующий текст резюме" in prompt:
+        if is_json:
+            text_response = """
+            {
+                "match_analysis": "Анализ соответствия (MOCK)",
+                "cover_letter": "Сопроводительное письмо (MOCK)",
+                "hr_call_plan": "План созвона с HR (MOCK)",
+                "tech_interview_plan": "План технического собеседования (MOCK)"
+            }
+            """
+        elif "является ли следующий текст резюме" in prompt:
             text_response = '{"is_resume": true, "title": "Mock Resume Title"}'
         elif "является ли он описанием вакансии" in prompt:
             text_response = '{"is_vacancy": true, "title": "Mock Vacancy Title"}'
@@ -42,7 +51,15 @@ class MockProvider:
             "total_tokens": prompt_tokens + completion_tokens,
         }
 
-        return {"text": text_response, "usage": usage}
+        response_data = {"usage": usage}
+        if is_json:
+            response_data["json"] = json.loads(text_response)
+            response_data["text"] = None
+        else:
+            response_data["text"] = text_response
+            response_data["json"] = None
+
+        return response_data
 
     def verify_text(self, text: str, prompt_template: str) -> dict:
         """
@@ -51,9 +68,9 @@ class MockProvider:
         prompt = prompt_template.format(text=text)
         return self._get_completion(prompt)
 
-    def analyze(self, prompt_template: str, **kwargs) -> dict:
+    def analyze(self, prompt_template: str, is_json: bool = False, **kwargs) -> dict:
         """
         Выполняет мок-анализ или генерацию текста.
         """
         prompt = prompt_template.format(**kwargs)
-        return self._get_completion(prompt)
+        return self._get_completion(prompt, is_json)

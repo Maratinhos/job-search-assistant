@@ -26,15 +26,8 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     vacancy_id = context.user_data.get('selected_vacancy_id')
 
     if not vacancy_id:
-        await query.message.reply_text(
-            text=messages.CHOOSE_VACANCY_FOR_ACTION, parse_mode=ParseMode.MARKDOWN_V2
-        )
+        await query.message.reply_text(text=messages.CHOOSE_VACANCY_FOR_ACTION, parse_mode=ParseMode.MARKDOWN_V2)
         return MAIN_MENU
-
-    await query.message.reply_text(
-        text=messages.ANALYSIS_IN_PROGRESS,
-        parse_mode=ParseMode.MARKDOWN_V2,
-    )
 
     db_session_gen = get_db()
     db = next(db_session_gen)
@@ -47,99 +40,62 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             await query.message.reply_text(text=messages.ERROR_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2)
             return MAIN_MENU
 
-        # Проверяем кэш
-        cached_result = crud.get_analysis_result(db, resume.id, vacancy.id, action)
-        if cached_result:
+        analysis_result = crud.get_analysis_result(db, resume.id, vacancy.id)
+        action_details = ACTION_REGISTRY.get(action)
+        db_field = action_details.get("db_field")
+
+        # Проверяем, есть ли уже результат для этого действия
+        if analysis_result and hasattr(analysis_result, db_field) and getattr(analysis_result, db_field):
+            response_text = getattr(analysis_result, db_field)
             logger.info(f"Найден кэшированный результат для action='{action}', user_id={user.id}")
+        else:
+            # Если кэша нет, запускаем полный анализ
+            await query.message.reply_text(text=messages.ANALYSIS_IN_PROGRESS, parse_mode=ParseMode.MARKDOWN_V2)
+
             try:
-                with open(cached_result.file_path, 'r', encoding='utf-8') as f:
-                    response_text = f.read()
-                action_details = ACTION_REGISTRY.get(action)
-                if not action_details:
-                    await query.message.reply_text(
-                        text=messages.NOT_IMPLEMENTED, parse_mode=ParseMode.MARKDOWN_V2
-                    )
-                    return MAIN_MENU
-                header = action_details["response_header"]
-                message_text = f"{header}\n\n{response_text}"
-                message_text_parts = [message_text[i:i + 4000] for i in range(0, len(message_text), 4000)]
-                for message_text_part in message_text_parts:
-                    await query.message.reply_text(
-                        text=message_text_part, parse_mode=ParseMode.MARKDOWN_V2
-                    )
-                return MAIN_MENU
+                with open(resume.file_path, 'r', encoding='utf-8') as f:
+                    resume_text = f.read()
+                with open(vacancy.file_path, 'r', encoding='utf-8') as f:
+                    vacancy_text = f.read()
             except FileNotFoundError:
-                logger.warning(f"Файл для кэшированного результата не найден: {cached_result.file_path}")
-                # Если файл не найден, продолжаем как обычно, чтобы сгенерировать новый
+                logger.error(f"Файл резюме или вакансии не найден для пользователя {chat_id}.")
+                await query.message.reply_text(text=messages.ERROR_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2)
+                return MAIN_MENU
 
-        # Чтение текстов из файлов
-        try:
-            with open(resume.file_path, 'r', encoding='utf-8') as f:
-                resume_text = f.read()
-            with open(vacancy.file_path, 'r', encoding='utf-8') as f:
-                vacancy_text = f.read()
-        except FileNotFoundError:
-            logger.error(f"Файл резюме или вакансии не найден для пользователя {chat_id}.")
-            await query.message.reply_text(text=messages.ERROR_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2)
-            return MAIN_MENU
+            ai_client = get_ai_client()
+            response = ai_client.get_consolidated_analysis(resume_text, vacancy_text)
 
-        # Получаем клиент AI
-        ai_client = get_ai_client()
+            if not response or not response.get("json"):
+                logger.error(f"Ошибка при получении полного анализа от AI: {response}")
+                await query.message.reply_text(text=messages.AI_ERROR_RESPONSE, parse_mode=ParseMode.MARKDOWN_V2)
+                return MAIN_MENU
 
-        # Вызов AI и логирование
-        response, header = _call_ai_for_action(ai_client, action, resume_text, vacancy_text)
-        if not response:
-            await query.message.reply_text(
-                text=messages.NOT_IMPLEMENTED, parse_mode=ParseMode.MARKDOWN_V2
+            analysis_data = response["json"]
+            crud.create_analysis_result(db, resume.id, vacancy.id, analysis_data)
+            response_text = analysis_data.get(db_field)
+
+            # Логирование использования AI
+            usage = response.get("usage", {})
+            crud.create_ai_usage_log(
+                db=db, user_id=user.id,
+                prompt_tokens=usage.get("prompt_tokens", 0),
+                completion_tokens=usage.get("completion_tokens", 0),
+                total_tokens=usage.get("total_tokens", 0),
+                cost=usage.get("cost", 0.0),
+                action="consolidated_analysis",
+                resume_id=resume.id, vacancy_id=vacancy.id
             )
-            return MAIN_MENU
 
-        response_text = response.get("text", messages.AI_ERROR_RESPONSE)
-        if not response.get("text"):
-            # Если текста нет, вероятно, произошла ошибка, и мы уже уведомили пользователя.
-            # Просто выходим, чтобы не сохранять пустой файл и не падать.
-            logger.warning(f"Действие '{action}' не вернуло текст от AI. Ответ: {response}")
-            # Отправляем сообщение об ошибке, если его еще не было
-            if "error" in response:
-                await query.message.reply_text(
-                    text=messages.ERROR_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2
-                )
-            return MAIN_MENU
-
-        # Сохранение результата анализа
-        analysis_dir = "storage/analysis_results"
-        os.makedirs(analysis_dir, exist_ok=True)
-        file_name = f"{uuid.uuid4()}.txt"
-        file_path = os.path.join(analysis_dir, file_name)
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(response_text)
-
-        crud.create_analysis_result(
-            db,
-            resume_id=resume.id,
-            vacancy_id=vacancy.id,
-            action_type=action,
-            file_path=file_path,
-        )
-
-        # Логирование использования AI
-        usage = response.get("usage", {})
-        crud.create_ai_usage_log(
-            db=db,
-            user_id=user.id,
-            prompt_tokens=usage.get("prompt_tokens", 0),
-            completion_tokens=usage.get("completion_tokens", 0),
-            total_tokens=usage.get("total_tokens", 0),
-            cost=usage.get("cost", 0.0),
-            action=action,
-            resume_id=resume.id,
-            vacancy_id=vacancy.id,
-        )
-
-        message_text = f"{header}\n\n{response_text}"
-        message_text_parts = [message_text[i:i + 4000] for i in range(0, len(message_text), 4000)]
-        for message_text_part in message_text_parts:
-            await query.message.reply_text(text=message_text_part, parse_mode=ParseMode.MARKDOWN_V2)
+        # Отправка результата пользователю
+        if response_text:
+            header = action_details["response_header"]
+            message_text = f"{header}\n\n{response_text}"
+            message_text_parts = [message_text[i:i + 4000] for i in range(0, len(message_text), 4000)]
+            for part in message_text_parts:
+                await query.message.reply_text(text=part, parse_mode=ParseMode.MARKDOWN_V2)
+        else:
+            logger.error(f"Не удалось получить текст для '{action}' после анализа.")
+            await query.message.reply_text(text=messages.ERROR_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2)
 
     except Exception as e:
         logger.error(f"Ошибка во время выполнения действия '{action}' для пользователя {chat_id}: {e}", exc_info=True)
@@ -148,26 +104,6 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         db.close()
 
     return MAIN_MENU
-
-
-def _call_ai_for_action(ai_client, action: str, resume_text: str, vacancy_text: str) -> tuple:
-    """
-    Вызывает соответствующий метод AI в зависимости от действия, используя ACTION_REGISTRY.
-    Возвращает кортеж (ответ_AI, заголовок_ответа).
-    """
-    action_details = ACTION_REGISTRY.get(action)
-    if not action_details:
-        return None, None
-
-    method_name = action_details["ai_method_name"]
-    header = action_details["response_header"]
-
-    method_to_call = getattr(ai_client, method_name, None)
-    if not method_to_call:
-        return None, None
-
-    response = method_to_call(resume_text, vacancy_text)
-    return response, header
 
 
 # Создаем обработчики для каждой кнопки, используя лямбда-функцию для передачи названия действия

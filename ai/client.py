@@ -32,6 +32,15 @@ class AIClient:
             vacancy_text=vacancy_text,
         )
 
+    def get_consolidated_analysis(self, resume_text: str, vacancy_text: str) -> dict:
+        """Выполняет полный анализ резюме и вакансии."""
+        return self.provider.analyze(
+            prompts.CONSOLIDATED_ANALYSIS_PROMPT,
+            resume_text=resume_text,
+            vacancy_text=vacancy_text,
+            is_json=True,
+        )
+
     def generate_cover_letter(self, resume_text: str, vacancy_text: str) -> dict:
         """Генерирует сопроводительное письмо."""
         return self.provider.analyze(

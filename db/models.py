@@ -7,6 +7,7 @@ from sqlalchemy import (
     BigInteger,
     DateTime,
     Float,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
@@ -96,13 +97,21 @@ class AnalysisResult(Base):
     __tablename__ = "analysis_results"
 
     id = Column(Integer, primary_key=True, index=True)
-    resume_id = Column(Integer, ForeignKey("resumes.id"), nullable=False)
-    vacancy_id = Column(Integer, ForeignKey("vacancies.id"), nullable=False)
-    action_type = Column(String(255), nullable=False)  # e.g., 'analyze_match', 'generate_letter'
-    file_path = Column(String(255), nullable=False)
+    resume_id = Column(Integer, ForeignKey("resumes.id"), nullable=False, index=True)
+    vacancy_id = Column(Integer, ForeignKey("vacancies.id"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    match_analysis = Column(Text, nullable=True)
+    cover_letter = Column(Text, nullable=True)
+    hr_call_plan = Column(Text, nullable=True)
+    tech_interview_plan = Column(Text, nullable=True)
 
     resume = relationship("Resume", back_populates="analysis_results")
     vacancy = relationship("Vacancy", back_populates="analysis_results")
 
+    __table_args__ = (
+        UniqueConstraint("resume_id", "vacancy_id", name="uq_resume_vacancy"),
+    )
+
     def __repr__(self):
-        return f"<AnalysisResult(id={self.id}, action_type='{self.action_type}')>"
+        return f"<AnalysisResult(id={self.id}, resume_id={self.resume_id}, vacancy_id={self.vacancy_id})>"

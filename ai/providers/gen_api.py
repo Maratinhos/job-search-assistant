@@ -55,7 +55,7 @@ class GenAPIProvider:
             },
         }
 
-    def _get_completion(self, prompt: str) -> dict:
+    def _get_completion(self, prompt: str, is_json: bool = False) -> dict:
         """
         Отправляет асинхронный запрос к API gen-api.ru, получает результат
         и возвращает унифицированный словарь с текстом и usage.
@@ -65,6 +65,8 @@ class GenAPIProvider:
             "model": "gpt-5-mini",
             "messages": [{"role": "user", "content": prompt}],
         }
+        if is_json:
+            payload["response_format"] = {"type": "json_object"}
 
         try:
             initial_response = requests.post(self.API_URL, json=payload, headers=self.headers)
@@ -98,15 +100,28 @@ class GenAPIProvider:
                         completion_tokens = self._calculate_tokens(content)
                         total_tokens = prompt_tokens + completion_tokens
 
-                        return {
-                            "text": content,
+                        response_data = {
                             "usage": {
                                 "cost": float(cost) if cost else 0.0,
                                 "prompt_tokens": prompt_tokens,
                                 "completion_tokens": completion_tokens,
                                 "total_tokens": total_tokens,
-                            },
+                            }
                         }
+
+                        if is_json:
+                            try:
+                                response_data["json"] = json.loads(content)
+                                response_data["text"] = None
+                            except json.JSONDecodeError:
+                                logger.error("Не удалось декодировать JSON из ответа AI.")
+                                return self._create_error_response(prompt)
+                        else:
+                            response_data["text"] = content
+                            response_data["json"] = None
+
+                        return response_data
+
                     except (KeyError, IndexError, TypeError) as e:
                         logger.error(f"Не удалось извлечь контент из успешного ответа: {e}. Ответ: {result_data}")
                         return self._create_error_response(prompt)
@@ -136,9 +151,9 @@ class GenAPIProvider:
         prompt = prompt_template.format(text=text)
         return self._get_completion(prompt)
 
-    def analyze(self, prompt_template: str, **kwargs) -> dict:
+    def analyze(self, prompt_template: str, is_json: bool = False, **kwargs) -> dict:
         """
         Выполняет анализ или генерацию текста на основе шаблона и аргументов.
         """
         prompt = prompt_template.format(**kwargs)
-        return self._get_completion(prompt)
+        return self._get_completion(prompt, is_json)

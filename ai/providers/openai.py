@@ -25,7 +25,7 @@ class OpenAIProvider:
         }
         logger.info("Инициализирован OpenAI провайдер.")
 
-    def _get_completion(self, prompt: str) -> dict:
+    def _get_completion(self, prompt: str, is_json: bool = False) -> dict:
         """
         Отправляет запрос к API OpenAI и возвращает ответ.
         NOTE: This is a placeholder implementation. It does not actually call the API.
@@ -36,7 +36,17 @@ class OpenAIProvider:
         # For the purpose of this task, we don't need to implement the full OpenAI call.
         # We just need to make sure the provider has a consistent structure.
 
-        text_response = "Ответ от OpenAI (не мок)"
+        if is_json:
+            text_response = """
+            {
+                "match_analysis": "Анализ соответствия от OpenAI",
+                "cover_letter": "Сопроводительное письмо от OpenAI",
+                "hr_call_plan": "План созвона с HR от OpenAI",
+                "tech_interview_plan": "План технического собеседования от OpenAI"
+            }
+            """
+        else:
+            text_response = "Ответ от OpenAI (не мок)"
 
         prompt_tokens = len(prompt.split())
         completion_tokens = len(text_response.split())
@@ -46,7 +56,15 @@ class OpenAIProvider:
             "total_tokens": prompt_tokens + completion_tokens,
         }
 
-        return {"text": text_response, "usage": usage}
+        response_data = {"usage": usage}
+        if is_json:
+            response_data["json"] = json.loads(text_response)
+            response_data["text"] = None
+        else:
+            response_data["text"] = text_response
+            response_data["json"] = None
+
+        return response_data
 
 
     def verify_text(self, text: str, prompt_template: str) -> dict:
@@ -56,9 +74,9 @@ class OpenAIProvider:
         prompt = prompt_template.format(text=text)
         return self._get_completion(prompt)
 
-    def analyze(self, prompt_template: str, **kwargs) -> dict:
+    def analyze(self, prompt_template: str, is_json: bool = False, **kwargs) -> dict:
         """
         Выполняет анализ или генерацию текста на основе шаблона и аргументов.
         """
         prompt = prompt_template.format(**kwargs)
-        return self._get_completion(prompt)
+        return self._get_completion(prompt, is_json)
