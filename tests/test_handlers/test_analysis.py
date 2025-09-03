@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch, mock_open
 from bot.handlers import analysis
 from db import models
 from bot.utils import escape_markdown_v2
+from ai.actions import ACTION_REGISTRY
 
 # Теперь мы можем использовать фикстуры update_mock и context_mock из conftest.py
 
@@ -37,12 +38,18 @@ async def test_perform_analysis_success(
     mock_crud.get_or_create_user.return_value = mock_user
     mock_crud.get_user_resume.return_value = mock_resume
     mock_crud.get_vacancy_by_id.return_value = mock_vacancy
-    mock_crud.get_analysis_result.return_value = None
+    mock_crud.get_analysis_result.return_value = None # No cached result
 
-    # Настройка мока AI клиента
+    # Настройка мока AI клиента для consolidated_analysis
     mock_ai_client = MagicMock()
+    mock_analysis_data = {
+        "match_analysis": "This is the match analysis.",
+        "cover_letter": "This is the cover letter.",
+        "hr_call_plan": "This is the HR call plan.",
+        "tech_interview_plan": "This is the tech interview plan."
+    }
     mock_ai_response = {
-        "text": "This is a test analysis.",
+        "json": mock_analysis_data,
         "usage": {
             "cost": 0.005,
             "prompt_tokens": 100,
@@ -50,12 +57,7 @@ async def test_perform_analysis_success(
             "total_tokens": 300,
         }
     }
-    # Мокаем метод, который будет вызываться через getattr
-    mock_analyze_method = MagicMock(return_value=mock_ai_response)
-    # Устанавливаем мок-метод как атрибут на мок-клиенте
-    # Это важно, так как код теперь использует getattr(ai_client, "analyze_match")
-    setattr(mock_ai_client, "analyze_match", mock_analyze_method)
-
+    mock_ai_client.get_consolidated_analysis.return_value = mock_ai_response
     mock_get_ai.return_value = mock_ai_client
 
     # Вызов тестируемой функции
@@ -66,16 +68,14 @@ async def test_perform_analysis_success(
     mock_open_file.assert_any_call("vacancy.txt", 'r', encoding='utf-8')
 
     # Проверяем, что был вызван правильный метод AI
-    mock_analyze_method.assert_called_once_with("file content", "file content")
+    mock_ai_client.get_consolidated_analysis.assert_called_once_with("file content", "file content")
 
+    # Проверяем, что результат сохраняется в БД
     mock_crud.create_analysis_result.assert_called_once_with(
-        mock_db,
-        resume_id=resume_id,
-        vacancy_id=vacancy_id,
-        action_type=action,
-        file_path=os.path.join("storage/analysis_results", "test-uuid.txt")
+        mock_db, mock_resume.id, mock_vacancy.id, mock_analysis_data
     )
 
+    # Проверяем логирование использования
     mock_crud.create_ai_usage_log.assert_called_once_with(
         db=mock_db,
         user_id=user_id,
@@ -83,16 +83,18 @@ async def test_perform_analysis_success(
         completion_tokens=200,
         total_tokens=300,
         cost=0.005,
-        action=action,
-        resume_id=resume_id,
-        vacancy_id=vacancy_id,
+        action="consolidated_analysis",
+        resume_id=mock_resume.id,
+        vacancy_id=mock_vacancy.id,
     )
 
     # Проверяем, что пользователю был отправлен результат
     update_mock.callback_query.message.reply_text.assert_called()
     last_call_args = update_mock.callback_query.message.reply_text.call_args
-    # Проверяем, что заголовок из ACTION_REGISTRY и текст ответа AI присутствуют
-    escaped_header = escape_markdown_v2("Анализ завершен:")
-    escaped_body = escape_markdown_v2("This is a test analysis.")
-    assert escaped_header in last_call_args.kwargs['text']
-    assert escaped_body in last_call_args.kwargs['text']
+
+    action_details = ACTION_REGISTRY.get(action)
+    expected_header = action_details["response_header"]
+    expected_body = mock_analysis_data[action_details["db_field"]]
+
+    assert expected_header in last_call_args.kwargs['text']
+    assert expected_body in last_call_args.kwargs['text']
