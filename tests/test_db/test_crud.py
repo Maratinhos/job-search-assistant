@@ -106,21 +106,43 @@ def test_create_ai_usage_log_with_relations(db_session):
 
 
 def test_create_analysis_result(db_session):
-    """Тестирует создание записи о результате анализа."""
+    """Тестирует создание и обновление записи о результате анализа."""
     user = crud.get_or_create_user(db_session, chat_id=101)
     resume = crud.create_resume(db_session, user_id=user.id, file_path="r.txt", source="s", title="T")
     vacancy = crud.create_vacancy(db_session, user_id=user.id, title="V", file_path="v.txt", source="s")
 
-    analysis = crud.create_analysis_result(
+    # 1. Создание новой записи
+    analysis_data_1 = {
+        "match_analysis": "Match analysis text.",
+        "cover_letter": "Cover letter text.",
+    }
+    analysis1 = crud.create_analysis_result(
         db_session,
         resume_id=resume.id,
         vacancy_id=vacancy.id,
-        action_type="test_analysis",
-        file_path="/path/to/analysis.txt",
+        analysis_data=analysis_data_1,
     )
 
-    assert analysis.id is not None
-    assert analysis.resume_id == resume.id
-    assert analysis.vacancy_id == vacancy.id
-    assert analysis.action_type == "test_analysis"
-    assert analysis.file_path == "/path/to/analysis.txt"
+    assert analysis1.id is not None
+    assert analysis1.resume_id == resume.id
+    assert analysis1.vacancy_id == vacancy.id
+    assert analysis1.match_analysis == "Match analysis text."
+    assert analysis1.cover_letter == "Cover letter text."
+    assert analysis1.hr_call_plan is None # Поле не было передано
+
+    # 2. Обновление существующей записи
+    analysis_data_2 = {
+        "cover_letter": "Updated cover letter text.",
+        "hr_call_plan": "HR call plan text.",
+    }
+    analysis2 = crud.create_analysis_result(
+        db_session,
+        resume_id=resume.id,
+        vacancy_id=vacancy.id,
+        analysis_data=analysis_data_2,
+    )
+
+    assert analysis2.id == analysis1.id  # Убедимся, что это та же самая запись
+    assert analysis2.match_analysis == "Match analysis text." # Старое значение сохранилось
+    assert analysis2.cover_letter == "Updated cover letter text." # Значение обновилось
+    assert analysis2.hr_call_plan == "HR call plan text." # Новое значение добавилось
