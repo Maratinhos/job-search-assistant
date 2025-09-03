@@ -204,6 +204,27 @@ GENERATE_COVER_LETTER_PROMPT = """
 ---
 """
 
+# Prompt for consolidated analysis
+CONSOLIDATED_ANALYSIS_PROMPT = f"""
+Проанализируй резюме и вакансию и выполни следующие задачи:
+1.  **Анализ соответствия**: {ANALYZE_MATCH_PROMPT}
+2.  **Сопроводительное письмо**: {GENERATE_COVER_LETTER_PROMPT}
+3.  **План созвона с HR**: {GENERATE_HR_CALL_PLAN_PROMPT}
+4.  **План технического собеседования**: {GENERATE_TECH_INTERVIEW_PLAN_PROMPT}
+
+Ответь в формате JSON с ключами "match_analysis", "cover_letter", "hr_call_plan", "tech_interview_plan".
+
+РЕЗЮМE:
+---
+{{resume_text}}
+---
+
+ВАКАНСИЯ:
++++
+{{vacancy_text}}
++++
+"""
+
 # Prompt to generate a plan for an HR call
 GENERATE_HR_CALL_PLAN_PROMPT = """
 Составь план для созвона с HR по данной вакансии, учитывая информацию из резюме. Созвон по длительности 15 минут, вопросы с обеих стороны должны уложиться в эти 15 минут. 

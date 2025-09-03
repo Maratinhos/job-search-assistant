@@ -87,28 +87,27 @@ def create_vacancy(db: Session, user_id: int, file_path: str, source: str, title
 
 
 # AnalysisResult functions
-def get_analysis_result(
-    db: Session, resume_id: int, vacancy_id: int, action_type: str
-) -> Optional[models.AnalysisResult]:
-    """Получает результат анализа по ID резюме, вакансии и типу действия."""
-    return (
-        db.query(models.AnalysisResult)
-        .filter_by(resume_id=resume_id, vacancy_id=vacancy_id, action_type=action_type)
-        .first()
-    )
+def get_analysis_result(db: Session, resume_id: int, vacancy_id: int) -> Optional[models.AnalysisResult]:
+    """Получает результат анализа по ID резюме и вакансии."""
+    return db.query(models.AnalysisResult).filter_by(resume_id=resume_id, vacancy_id=vacancy_id).first()
 
 
-def create_analysis_result(
-    db: Session, resume_id: int, vacancy_id: int, action_type: str, file_path: str
-) -> models.AnalysisResult:
-    """Создает запись о результате анализа."""
-    new_analysis = models.AnalysisResult(
-        resume_id=resume_id,
-        vacancy_id=vacancy_id,
-        action_type=action_type,
-        file_path=file_path,
-    )
-    db.add(new_analysis)
-    db.commit()
-    db.refresh(new_analysis)
-    return new_analysis
+def create_analysis_result(db: Session, resume_id: int, vacancy_id: int, analysis_data: dict) -> models.AnalysisResult:
+    """Создает или обновляет запись с результатами анализа."""
+    existing_analysis = get_analysis_result(db, resume_id, vacancy_id)
+    if existing_analysis:
+        for key, value in analysis_data.items():
+            setattr(existing_analysis, key, value)
+        db.commit()
+        db.refresh(existing_analysis)
+        return existing_analysis
+    else:
+        new_analysis = models.AnalysisResult(
+            resume_id=resume_id,
+            vacancy_id=vacancy_id,
+            **analysis_data,
+        )
+        db.add(new_analysis)
+        db.commit()
+        db.refresh(new_analysis)
+        return new_analysis
