@@ -13,10 +13,11 @@ from ai.actions import ACTION_REGISTRY
 @patch('os.makedirs')
 @patch('builtins.open', new_callable=mock_open, read_data="file content")
 @patch('bot.handlers.analysis.get_ai_client')
+@patch('bot.handlers.analysis.models')
 @patch('bot.handlers.analysis.crud')
 @patch('bot.handlers.analysis.get_db')
 async def test_perform_analysis_success(
-    mock_get_db, mock_crud, mock_get_ai, mock_open_file, mock_makedirs, mock_uuid,
+    mock_get_db, mock_crud, mock_models, mock_get_ai, mock_open_file, mock_makedirs, mock_uuid,
     update_mock, context_mock
 ):
     """Тестирует успешное выполнение анализа и сохранения результата с использованием ACTION_REGISTRY."""
@@ -70,9 +71,13 @@ async def test_perform_analysis_success(
     mock_ai_client.get_consolidated_analysis.assert_called_once_with("file content", "file content")
 
     # Проверяем, что результат сохраняется в БД
-    mock_crud.create_analysis_result.assert_called_once_with(
-        mock_db, mock_resume.id, mock_vacancy.id, mock_analysis_data
-    )
+    mock_analysis_result_instance = mock_models.AnalysisResult.return_value
+    mock_db.add.assert_called_once_with(mock_analysis_result_instance)
+    assert mock_analysis_result_instance.match_analysis == mock_analysis_data['match_analysis']
+    assert mock_analysis_result_instance.cover_letter == mock_analysis_data['cover_letter']
+    mock_db.commit.assert_called_once()
+    mock_db.refresh.assert_called_once_with(mock_analysis_result_instance)
+
 
     # Проверяем логирование использования
     mock_crud.create_ai_usage_log.assert_called_once_with(

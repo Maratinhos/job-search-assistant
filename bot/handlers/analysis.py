@@ -6,7 +6,7 @@ from telegram.ext import ContextTypes, CallbackQueryHandler
 
 from .resume import MAIN_MENU
 from bot import messages
-from db import crud
+from db import crud, models
 from db.database import get_db
 from ai.client import get_ai_client
 from ai.actions import ACTION_REGISTRY
@@ -43,12 +43,12 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         action_details = ACTION_REGISTRY.get(action)
         db_field = action_details.get("db_field")
 
-        # Проверяем, есть ли уже результат для этого действия
-        if analysis_result and hasattr(analysis_result, db_field) and getattr(analysis_result, db_field):
+        # Проверяем, есть ли уже результат для этого действия (и он не None)
+        if analysis_result and getattr(analysis_result, db_field) is not None:
             response_text = getattr(analysis_result, db_field)
             logger.info(f"Найден кэшированный результат для action='{action}', user_id={user.id}")
         else:
-            # Если кэша нет, запускаем полный анализ
+            # Если кэша нет или поле пустое, запускаем полный анализ
             await query.message.reply_text(text=messages.ANALYSIS_IN_PROGRESS)
 
             try:
@@ -70,7 +70,19 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 return MAIN_MENU
 
             analysis_data = response["json"]
-            crud.create_analysis_result(db, resume.id, vacancy.id, analysis_data)
+
+            # Явно обновляем или создаем запись
+            if not analysis_result:
+                analysis_result = models.AnalysisResult(resume_id=resume.id, vacancy_id=vacancy.id)
+                db.add(analysis_result)
+
+            for key, value in analysis_data.items():
+                if hasattr(analysis_result, key):
+                    setattr(analysis_result, key, value)
+
+            db.commit()
+            db.refresh(analysis_result)
+
             response_text = analysis_data.get(db_field)
 
             # Логирование использования AI
