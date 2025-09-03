@@ -1,12 +1,10 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, call
-from telegram.constants import ParseMode
 
 from bot.handlers.start import start
 from bot.handlers.states import AWAITING_RESUME_UPLOAD, AWAITING_VACANCY_UPLOAD, MAIN_MENU
 from db import models
 from bot import messages, keyboards
-from bot.utils import escape_markdown_v2
 
 
 @pytest.mark.anyio
@@ -32,11 +30,10 @@ async def test_start_no_resume(mock_get_db, mock_crud, mock_keyboards, update_mo
     assert result == AWAITING_RESUME_UPLOAD
 
     expected_calls = [
-        call(escape_markdown_v2(messages.WELCOME_MESSAGE), parse_mode=ParseMode.MARKDOWN_V2),
+        call(messages.WELCOME_MESSAGE),
         call(
-            escape_markdown_v2(messages.ASK_FOR_RESUME),
+            messages.ASK_FOR_RESUME,
             reply_markup="cancel_keyboard_markup",
-            parse_mode=ParseMode.MARKDOWN_V2,
         ),
     ]
     update_mock.message.reply_text.assert_has_calls(expected_calls, any_order=False)
@@ -68,11 +65,10 @@ async def test_start_with_resume_no_vacancies(mock_get_db, mock_crud, mock_keybo
 
     expected_main_menu_message = messages.MAIN_MENU_NO_VACANCIES.format(resume_title="My Resume Title")
     expected_calls = [
-        call(escape_markdown_v2(expected_main_menu_message), parse_mode=ParseMode.MARKDOWN_V2),
+        call(expected_main_menu_message),
         call(
-            escape_markdown_v2(messages.ASK_FOR_VACANCY),
+            messages.ASK_FOR_VACANCY,
             reply_markup="cancel_keyboard_markup",
-            parse_mode=ParseMode.MARKDOWN_V2,
         ),
     ]
     update_mock.message.reply_text.assert_has_calls(expected_calls, any_order=False)

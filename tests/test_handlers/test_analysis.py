@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch, mock_open
 
 from bot.handlers import analysis
 from db import models
-from bot.utils import escape_markdown_v2
 from ai.actions import ACTION_REGISTRY
 
 # Теперь мы можем использовать фикстуры update_mock и context_mock из conftest.py
