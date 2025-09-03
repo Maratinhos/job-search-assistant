@@ -83,16 +83,18 @@ async def process_document(
 
         is_valid_doc = response_json.get(json_key_check, False)
         title = response_json.get("title")
+        body = response_json.get("body")
     except (json.JSONDecodeError, AttributeError, KeyError, IndexError, TypeError) as e:
         logger.error(f"Failed to parse AI response: {response_data}. Error: {e}")
         is_valid_doc = False
         title = None
+        body = None
 
     if not is_valid_doc:
         return False, None
 
     # 5. Сохранение файла
-    file_path = save_text_to_file(text, folder_name)
+    file_path = save_text_to_file(body or text, folder_name)
     if not file_path:
         return False, None
 
