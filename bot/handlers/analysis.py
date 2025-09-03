@@ -3,7 +3,6 @@ import os
 import uuid
 from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
-from telegram.constants import ParseMode
 
 from .resume import MAIN_MENU
 from bot import messages
@@ -26,7 +25,7 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     vacancy_id = context.user_data.get('selected_vacancy_id')
 
     if not vacancy_id:
-        await query.message.reply_text(text=messages.CHOOSE_VACANCY_FOR_ACTION, parse_mode=ParseMode.MARKDOWN_V2)
+        await query.message.reply_text(text=messages.CHOOSE_VACANCY_FOR_ACTION)
         return MAIN_MENU
 
     db_session_gen = get_db()
@@ -37,7 +36,7 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         vacancy = crud.get_vacancy_by_id(db, vacancy_id=vacancy_id)
 
         if not resume or not vacancy:
-            await query.message.reply_text(text=messages.ERROR_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2)
+            await query.message.reply_text(text=messages.ERROR_MESSAGE)
             return MAIN_MENU
 
         analysis_result = crud.get_analysis_result(db, resume.id, vacancy.id)
@@ -50,7 +49,7 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             logger.info(f"Найден кэшированный результат для action='{action}', user_id={user.id}")
         else:
             # Если кэша нет, запускаем полный анализ
-            await query.message.reply_text(text=messages.ANALYSIS_IN_PROGRESS, parse_mode=ParseMode.MARKDOWN_V2)
+            await query.message.reply_text(text=messages.ANALYSIS_IN_PROGRESS)
 
             try:
                 with open(resume.file_path, 'r', encoding='utf-8') as f:
@@ -59,7 +58,7 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                     vacancy_text = f.read()
             except FileNotFoundError:
                 logger.error(f"Файл резюме или вакансии не найден для пользователя {chat_id}.")
-                await query.message.reply_text(text=messages.ERROR_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2)
+                await query.message.reply_text(text=messages.ERROR_MESSAGE)
                 return MAIN_MENU
 
             ai_client = get_ai_client()
@@ -67,7 +66,7 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 
             if not response or not response.get("json"):
                 logger.error(f"Ошибка при получении полного анализа от AI: {response}")
-                await query.message.reply_text(text=messages.AI_ERROR_RESPONSE, parse_mode=ParseMode.MARKDOWN_V2)
+                await query.message.reply_text(text=messages.AI_ERROR_RESPONSE)
                 return MAIN_MENU
 
             analysis_data = response["json"]
@@ -92,14 +91,14 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             message_text = f"{header}\n\n{response_text}"
             message_text_parts = [message_text[i:i + 4000] for i in range(0, len(message_text), 4000)]
             for part in message_text_parts:
-                await query.message.reply_text(text=part, parse_mode=ParseMode.MARKDOWN_V2)
+                await query.message.reply_text(text=part)
         else:
             logger.error(f"Не удалось получить текст для '{action}' после анализа.")
-            await query.message.reply_text(text=messages.ERROR_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2)
+            await query.message.reply_text(text=messages.ERROR_MESSAGE)
 
     except Exception as e:
         logger.error(f"Ошибка во время выполнения действия '{action}' для пользователя {chat_id}: {e}", exc_info=True)
-        await query.message.reply_text(text=messages.ERROR_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2)
+        await query.message.reply_text(text=messages.ERROR_MESSAGE)
     finally:
         db.close()
 

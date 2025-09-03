@@ -8,7 +8,6 @@ from bot.handlers.vacancy import (
 )
 from bot.handlers.states import AWAITING_VACANCY_UPLOAD, MAIN_MENU
 from bot import messages
-from bot.utils import escape_markdown_v2
 
 # Фикстуры update_mock и context_mock из conftest.py используются неявно
 
@@ -40,7 +39,7 @@ async def test_handle_vacancy_file_success(
     # --- Asserts ---
     mock_process_document.assert_called_once()
     assert any(
-        escape_markdown_v2(messages.VACANCY_UPLOADED_SUCCESS) in call.args[0]
+        messages.VACANCY_UPLOADED_SUCCESS in call.args[0]
         for call in update_mock.message.reply_text.call_args_list
     )
     mock_show_main_menu.assert_called_once()
@@ -73,7 +72,7 @@ async def test_handle_vacancy_file_failure(
     # --- Asserts ---
     mock_process_document.assert_called_once()
     assert any(
-        escape_markdown_v2(messages.VACANCY_VERIFICATION_FAILED) in call.args[0]
+        messages.VACANCY_VERIFICATION_FAILED in call.args[0]
         for call in update_mock.message.reply_text.call_args_list
     )
     assert result == AWAITING_VACANCY_UPLOAD
@@ -114,5 +113,5 @@ async def test_handle_invalid_vacancy_input(update_mock, context_mock):
     result = await handle_invalid_vacancy_input(update_mock, context_mock)
 
     update_mock.message.reply_text.assert_called_once()
-    assert escape_markdown_v2(messages.VACANCY_INVALID_FORMAT) in update_mock.message.reply_text.call_args.args[0]
+    assert messages.VACANCY_INVALID_FORMAT in update_mock.message.reply_text.call_args.args[0]
     assert result == AWAITING_VACANCY_UPLOAD
