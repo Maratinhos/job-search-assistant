@@ -13,7 +13,10 @@ class GenAPIProvider:
     Класс для взаимодействия с API gen-api.ru.
     """
 
-    API_URL = "https://api.gen-api.ru/api/v1/networks/gpt-5"
+    llm = 'gpt-4-1'
+    model = 'gpt-4.1-mini'
+
+    API_URL = f"https://api.gen-api.ru/api/v1/networks/{llm}"
     RESULT_URL = "https://api.gen-api.ru/api/v1/request/get/{request_id}"
     POLLING_INTERVAL = 3  # Секунды
     MAX_POLLING_ATTEMPTS = 100  # Максимальное количество попыток
@@ -62,7 +65,7 @@ class GenAPIProvider:
         """
         logger.info(f"Отправка асинхронного запроса к Gen-API. Промпт: {prompt[:150]}...")
         payload = {
-            "model": "gpt-5-mini",
+            "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": 8192,
         }
