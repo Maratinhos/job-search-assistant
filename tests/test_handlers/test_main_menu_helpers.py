@@ -23,10 +23,16 @@ async def test_show_main_menu_with_selected_vacancy(mock_keyboards, mock_crud, m
     mock_vacancies = [models.Vacancy(id=1, user_id=1, title="Vacancy 1")]
     mock_selected_vacancy = models.Vacancy(id=1, user_id=1, title="Vacancy 1")
 
+    db_mock = MagicMock()
+    mock_get_db.return_value = iter([db_mock])
+    db_mock.query.return_value.filter_by.return_value.first.return_value = None
+
+
     mock_crud.get_or_create_user.return_value = mock_user
     mock_crud.get_user_resume.return_value = mock_resume
     mock_crud.get_user_vacancies.return_value = mock_vacancies
     mock_crud.get_vacancy_by_id.return_value = mock_selected_vacancy
+    mock_crud.get_active_survey.return_value = None
     mock_keyboards.main_menu_keyboard.return_value = "main_menu_keyboard_markup"
 
     # --- Call ---
@@ -44,7 +50,8 @@ async def test_show_main_menu_with_selected_vacancy(mock_keyboards, mock_crud, m
     mock_keyboards.main_menu_keyboard.assert_called_once_with(
         vacancy_count=1,
         has_resume=True,
-        has_selected_vacancy=True
+        has_selected_vacancy=True,
+        show_survey_button=False
     )
 
 @pytest.mark.anyio
@@ -64,9 +71,14 @@ async def test_show_main_menu_no_selected_vacancy(mock_keyboards, mock_crud, moc
     mock_resume = models.Resume(id=1, user_id=1, title="My Resume")
     mock_vacancies = [models.Vacancy(id=1, user_id=1, title="Vacancy 1")]
 
+    db_mock = MagicMock()
+    mock_get_db.return_value = iter([db_mock])
+    db_mock.query.return_value.filter_by.return_value.first.return_value = None
+
     mock_crud.get_or_create_user.return_value = mock_user
     mock_crud.get_user_resume.return_value = mock_resume
     mock_crud.get_user_vacancies.return_value = mock_vacancies
+    mock_crud.get_active_survey.return_value = None
     mock_keyboards.main_menu_keyboard.return_value = "main_menu_keyboard_markup"
 
     # --- Call ---
@@ -81,7 +93,8 @@ async def test_show_main_menu_no_selected_vacancy(mock_keyboards, mock_crud, moc
     mock_keyboards.main_menu_keyboard.assert_called_once_with(
         vacancy_count=1,
         has_resume=True,
-        has_selected_vacancy=False
+        has_selected_vacancy=False,
+        show_survey_button=False
     )
 
 @pytest.mark.anyio
@@ -100,9 +113,14 @@ async def test_show_main_menu_no_vacancies(mock_keyboards, mock_crud, mock_get_d
     mock_user = models.User(id=1, chat_id=123)
     mock_resume = models.Resume(id=1, user_id=1, title="My Resume")
 
+    db_mock = MagicMock()
+    mock_get_db.return_value = iter([db_mock])
+    db_mock.query.return_value.filter_by.return_value.first.return_value = None
+
     mock_crud.get_or_create_user.return_value = mock_user
     mock_crud.get_user_resume.return_value = mock_resume
     mock_crud.get_user_vacancies.return_value = []
+    mock_crud.get_active_survey.return_value = None
     mock_keyboards.main_menu_keyboard.return_value = "main_menu_keyboard_markup"
 
     # --- Call ---
@@ -117,5 +135,6 @@ async def test_show_main_menu_no_vacancies(mock_keyboards, mock_crud, mock_get_d
     mock_keyboards.main_menu_keyboard.assert_called_once_with(
         vacancy_count=0,
         has_resume=True,
-        has_selected_vacancy=False
+        has_selected_vacancy=False,
+        show_survey_button=False
     )

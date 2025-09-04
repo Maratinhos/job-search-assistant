@@ -12,24 +12,24 @@ def main_menu_keyboard(
     """Генерирует клавиатуру для главного меню."""
     buttons = []
 
-    if show_survey_button:
-        buttons.append([InlineKeyboardButton("Пройти опрос", callback_data="start_survey")])
-
     if has_selected_vacancy:
         buttons.extend([
-            [InlineKeyboardButton("Анализ резюме/вакансии", callback_data="analyze_match")],
-            [InlineKeyboardButton("Сопроводительное письмо", callback_data="generate_letter")],
-            [InlineKeyboardButton("План созвона с HR", callback_data="generate_hr_plan")],
-            [InlineKeyboardButton("План тех. собеседования", callback_data="generate_tech_plan")],
+            [InlineKeyboardButton("📊 Анализ резюме/вакансии", callback_data="analyze_match")],
+            [InlineKeyboardButton("✉️ Сопроводительное письмо", callback_data="generate_letter")],
+            [InlineKeyboardButton("📞 План созвона с HR", callback_data="generate_hr_plan")],
+            [InlineKeyboardButton("💻 План тех. собеседования", callback_data="generate_tech_plan")],
         ])
 
-    if vacancy_count > 0:
-        buttons.append([InlineKeyboardButton(f"Выбрать другую вакансию ({vacancy_count})", callback_data="select_vacancy")])
+    if show_survey_button:
+        buttons.append([InlineKeyboardButton("📝 Пройти опрос", callback_data="start_survey")])
 
-    buttons.append([InlineKeyboardButton("Загрузить новую вакансию", callback_data="upload_vacancy")])
+    if vacancy_count > 0:
+        buttons.append([InlineKeyboardButton(f"📂 Выбрать другую вакансию ({vacancy_count})", callback_data="select_vacancy")])
+
+    buttons.append([InlineKeyboardButton("➕ Загрузить новую вакансию", callback_data="upload_vacancy")])
 
     if has_resume:
-        buttons.append([InlineKeyboardButton("Обновить резюме", callback_data="update_resume")])
+        buttons.append([InlineKeyboardButton("🔄 Обновить резюме", callback_data="update_resume")])
 
     return InlineKeyboardMarkup(buttons)
 
