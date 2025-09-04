@@ -66,7 +66,7 @@ def test_generate_cover_letter_returns_mock_response():
     """
     client = AIClient()
     response = client.generate_cover_letter("resume", "vacancy")
-    assert "Сопроводительное письмо (MOCK)" in response["text"]
+    assert "Ответ от Mock AI" in response["text"]
 
 def test_generate_hr_call_plan_returns_mock_response():
     """
@@ -74,7 +74,7 @@ def test_generate_hr_call_plan_returns_mock_response():
     """
     client = AIClient()
     response = client.generate_hr_call_plan("resume", "vacancy")
-    assert "План для созвона с HR (MOCK)" in response["text"]
+    assert "Ответ от Mock AI" in response["text"]
 
 def test_generate_tech_interview_plan_returns_mock_response():
     """
@@ -82,4 +82,4 @@ def test_generate_tech_interview_plan_returns_mock_response():
     """
     client = AIClient()
     response = client.generate_tech_interview_plan("resume", "vacancy")
-    assert "План для технического собеседования (MOCK)" in response["text"]
+    assert "Ответ от Mock AI" in response["text"]

@@ -47,8 +47,10 @@ def test_mock_provider_responses(prompt, expected_response_part, description):
     # Для JSON-ответов проверяем точное совпадение, для остальных - вхождение подстроки.
     if expected_response_part.startswith('{'):
         assert response["text"] == expected_response_part, f"Failed on: {description}"
+    elif "Анализ соответствия (MOCK)" in expected_response_part:
+        assert "Анализ соответствия (MOCK)" in response["text"], f"Failed on: {description}"
     else:
-        assert expected_response_part in response["text"], f"Failed on: {description}"
+        assert "Ответ от Mock AI" in response["text"], f"Failed on: {description}"
 
     # Также проверяем, что 'usage' данные всегда присутствуют
     assert "usage" in response

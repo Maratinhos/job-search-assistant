@@ -38,3 +38,24 @@ def save_text_to_file(text: str, subfolder: str) -> str:
     except IOError as e:
         print(f"Error saving file: {e}")
         return None
+
+
+def read_text_from_file(file_path: str) -> str | None:
+    """
+    Reads text content from a file.
+
+    Args:
+        file_path: The relative path to the file.
+
+    Returns:
+        The text content of the file, or None on error.
+    """
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        print(f"File not found: {file_path}")
+        return None
+    except IOError as e:
+        print(f"Error reading file: {e}")
+        return None
