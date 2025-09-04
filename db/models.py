@@ -101,10 +101,10 @@ class AnalysisResult(Base):
     vacancy_id = Column(Integer, ForeignKey("vacancies.id"), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    match_analysis = Column(Text, nullable=True)
-    cover_letter = Column(Text, nullable=True)
-    hr_call_plan = Column(Text, nullable=True)
-    tech_interview_plan = Column(Text, nullable=True)
+    match_analysis = Column(String(255), nullable=True)
+    cover_letter = Column(String(255), nullable=True)
+    hr_call_plan = Column(String(255), nullable=True)
+    tech_interview_plan = Column(String(255), nullable=True)
 
     resume = relationship("Resume", back_populates="analysis_results")
     vacancy = relationship("Vacancy", back_populates="analysis_results")

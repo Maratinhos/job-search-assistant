@@ -4,6 +4,7 @@ import uuid
 from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
+from bot.file_utils import save_text_to_file, read_text_from_file
 from .resume import MAIN_MENU
 from bot import messages
 from db import crud, models
@@ -43,11 +44,15 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         action_details = ACTION_REGISTRY.get(action)
         db_field = action_details.get("db_field")
 
+        response_text = None
         # Проверяем, есть ли уже результат для этого действия (и он не None)
-        if analysis_result and getattr(analysis_result, db_field) is not None:
-            response_text = getattr(analysis_result, db_field)
-            logger.info(f"Найден кэшированный результат для action='{action}', user_id={user.id}")
-        else:
+        if analysis_result and getattr(analysis_result, db_field):
+            file_path = getattr(analysis_result, db_field)
+            response_text = read_text_from_file(file_path)
+            if response_text:
+                logger.info(f"Найден кэшированный результат для action='{action}', user_id={user.id}")
+
+        if not response_text:
             # Если кэша нет или поле пустое, запускаем полный анализ
             await query.message.reply_text(text=messages.ANALYSIS_IN_PROGRESS)
 
@@ -76,14 +81,19 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 analysis_result = models.AnalysisResult(resume_id=resume.id, vacancy_id=vacancy.id)
                 db.add(analysis_result)
 
+            # Сохраняем каждое поле в отдельный файл
             for key, value in analysis_data.items():
-                if hasattr(analysis_result, key):
-                    setattr(analysis_result, key, value)
+                if hasattr(analysis_result, key) and value:
+                    file_path = save_text_to_file(value, "analysis_results")
+                    if file_path:
+                        setattr(analysis_result, key, file_path)
 
             db.commit()
             db.refresh(analysis_result)
 
-            response_text = analysis_data.get(db_field)
+            # Получаем текст для текущего действия
+            response_text = read_text_from_file(getattr(analysis_result, db_field))
+
 
             # Логирование использования AI
             usage = response.get("usage", {})

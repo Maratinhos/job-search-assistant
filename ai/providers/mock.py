@@ -24,8 +24,8 @@ class MockProvider:
             {
                 "match_analysis": "Анализ соответствия (MOCK)",
                 "cover_letter": "Сопроводительное письмо (MOCK)",
-                "hr_call_plan": "План созвона с HR (MOCK)",
-                "tech_interview_plan": "План технического собеседования (MOCK)"
+                "hr_call_plan": "План для созвона с HR (MOCK)",
+                "tech_interview_plan": "План для технического собеседования (MOCK)"
             }
             """
         elif "является ли следующий текст резюме" in prompt:
@@ -35,11 +35,11 @@ class MockProvider:
         elif "Проанализируй на соответствие" in prompt:
             text_response = "Анализ соответствия (MOCK): Кандидат отлично подходит."
         elif "Напиши сопроводительное письмо" in prompt:
-            text_response = "Сопроводительное письмо (MOCK): Уважаемый HR..."
+            text_response = "Сопроводительное письмо (MOCK)"
         elif "Составь план для созвона с HR" in prompt:
-            text_response = "План для созвона с HR (MOCK): 1. Приветствие..."
+            text_response = "План для созвона с HR (MOCK)"
         elif "Составь подробный план для технического собеседования" in prompt:
-            text_response = "План для технического собеседования (MOCK): 1. Вопросы по Python..."
+            text_response = "План для технического собеседования (MOCK)"
         else:
             text_response = "Ответ от Mock AI"
 
