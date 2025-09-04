@@ -67,7 +67,6 @@ class GenAPIProvider:
         payload = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 8192,
         }
         if is_json:
             payload["response_format"] = {"type": "json_object"}
