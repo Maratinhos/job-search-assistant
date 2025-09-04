@@ -81,7 +81,9 @@ async def test_handle_survey_answer(mock_db_session):
         result = await handle_survey_answer(update, context)
 
         crud.create_survey_answer.assert_called_once()
-        update.message.reply_text.assert_called_once_with("Спасибо за ваш ответ!", reply_markup=update.message.reply_text.call_args[1]['reply_markup'])
+        update.message.reply_text.assert_called_once()
+        assert update.message.reply_text.call_args[0][0] == "Спасибо за ваш ответ!"
+        assert isinstance(update.message.reply_text.call_args[1]['reply_markup'], ReplyKeyboardRemove)
         assert "active_survey_id" not in context.user_data
         mock_show_main_menu.assert_called_once()
         assert result == MAIN_MENU
@@ -99,7 +101,9 @@ async def test_cancel_survey(mock_db_session):
 
         result = await cancel_survey(update, context)
 
-        update.message.reply_text.assert_called_once_with("Опрос отменен.", reply_markup=update.message.reply_text.call_args[1]['reply_markup'])
+        update.message.reply_text.assert_called_once()
+        assert update.message.reply_text.call_args[0][0] == "Опрос отменен."
+        assert isinstance(update.message.reply_text.call_args[1]['reply_markup'], ReplyKeyboardRemove)
         assert "active_survey_id" not in context.user_data
         mock_show_main_menu.assert_called_once()
         assert result == MAIN_MENU
