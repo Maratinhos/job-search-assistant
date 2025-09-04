@@ -3,6 +3,7 @@ import os
 import sys
 
 # Добавляем корневую директорию проекта в sys.path
+# python .\scripts\create_survey.py -q "Какую фичу вы бы хотели в следующем обновлении?" -o "Новые тарифы (дешевле)" "Новые тарифы (новейшие нейросети)" "Тестирование (с проверкой при помощи ИИ)" "Другое"
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from db import crud
