@@ -6,10 +6,14 @@ from typing import List
 def main_menu_keyboard(
     vacancy_count: int,
     has_resume: bool,
-    has_selected_vacancy: bool
+    has_selected_vacancy: bool,
+    show_survey_button: bool
 ) -> InlineKeyboardMarkup:
     """Генерирует клавиатуру для главного меню."""
     buttons = []
+
+    if show_survey_button:
+        buttons.append([InlineKeyboardButton("Пройти опрос", callback_data="start_survey")])
 
     if has_selected_vacancy:
         buttons.extend([

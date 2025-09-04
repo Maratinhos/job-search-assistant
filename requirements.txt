@@ -10,3 +10,4 @@ requests-mock
 pytest-mock
 trio
 tiktoken
+pytest-asyncio
