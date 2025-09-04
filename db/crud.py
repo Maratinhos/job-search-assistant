@@ -111,3 +111,39 @@ def create_analysis_result(db: Session, resume_id: int, vacancy_id: int, analysi
         db.commit()
         db.refresh(new_analysis)
         return new_analysis
+
+
+# Survey functions
+def get_active_survey(db: Session) -> Optional[models.Survey]:
+    """Возвращает первый активный опрос."""
+    return db.query(models.Survey).filter(models.Survey.is_active == True).first()
+
+
+def create_survey(db: Session, question: str, options: list[str]) -> models.Survey:
+    """Создает новый опрос и делает все остальные неактивными."""
+    # Деактивируем все существующие опросы
+    db.query(models.Survey).update({models.Survey.is_active: False})
+
+    # Создаем новый активный опрос
+    new_survey = models.Survey(
+        question=question,
+        options=",".join(options),  # Простое хранение через запятую
+        is_active=True
+    )
+    db.add(new_survey)
+    db.commit()
+    db.refresh(new_survey)
+    return new_survey
+
+
+def create_survey_answer(db: Session, user_id: int, survey_id: int, answer: str) -> models.SurveyAnswer:
+    """Создает ответ пользователя на опрос."""
+    new_answer = models.SurveyAnswer(
+        user_id=user_id,
+        survey_id=survey_id,
+        answer=answer
+    )
+    db.add(new_answer)
+    db.commit()
+    db.refresh(new_answer)
+    return new_answer

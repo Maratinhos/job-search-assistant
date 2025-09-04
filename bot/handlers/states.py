@@ -5,4 +5,5 @@
     MAIN_MENU,
     UPDATE_RESUME,
     SELECTING_VACANCY,
-) = range(5)
+    AWAITING_SURVEY_ANSWER,
+) = range(6)

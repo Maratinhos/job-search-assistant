@@ -3,7 +3,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from bot import messages, keyboards
-from db import crud
+from db import crud, models
 from db.database import get_db
 from .states import AWAITING_RESUME_UPLOAD
 
@@ -13,7 +13,9 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Отображает главное меню с учетом текущего состояния (выбранная вакансия и т.д.).
     """
-    chat_id = update.effective_chat.id
+    query = update.callback_query
+    chat_id = update.effective_chat.id or (query and query.message.chat.id)
+
     db_session_gen = get_db()
     db = next(db_session_gen)
     try:
@@ -21,6 +23,17 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         resume = crud.get_user_resume(db, user_id=user.id)
         vacancies = crud.get_user_vacancies(db, user_id=user.id)
         selected_vacancy_id = context.user_data.get('selected_vacancy_id')
+
+        # Логика для опроса
+        show_survey_button = False
+        active_survey = crud.get_active_survey(db)
+        if active_survey:
+            existing_answer = db.query(models.SurveyAnswer).filter_by(
+                user_id=user.id, survey_id=active_survey.id
+            ).first()
+            if not existing_answer:
+                show_survey_button = True
+
 
         message_text = ""
         keyboard = None
@@ -42,7 +55,8 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 keyboard = keyboards.main_menu_keyboard(
                     vacancy_count=len(vacancies),
                     has_resume=True,
-                    has_selected_vacancy=True
+                    has_selected_vacancy=True,
+                    show_survey_button=show_survey_button
                 )
             else:
                 # Если ID вакансии есть, но вакансия не найдена, сбрасываем ID
@@ -55,7 +69,8 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 keyboard = keyboards.main_menu_keyboard(
                     vacancy_count=len(vacancies),
                     has_resume=True,
-                    has_selected_vacancy=False
+                    has_selected_vacancy=False,
+                    show_survey_button=show_survey_button
                 )
             else:
                 message_text = messages.MAIN_MENU_NO_VACANCIES.format(resume_title=resume_title)
@@ -63,7 +78,8 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 keyboard = keyboards.main_menu_keyboard(
                     vacancy_count=0,
                     has_resume=True,
-                    has_selected_vacancy=False
+                    has_selected_vacancy=False,
+                    show_survey_button=show_survey_button
                 )
 
         # Отправляем или редактируем сообщение
