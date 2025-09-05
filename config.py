@@ -14,6 +14,9 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 # Ключ для Gen-API
 GEN_API_KEY = os.getenv("GEN_API_KEY")
 
+# Ключ для OpenRouter API
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+
 # Название файла базы данных
 DB_NAME = "bot_database.sqlite"
 
