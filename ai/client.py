@@ -1,9 +1,10 @@
-from .providers.gen_api import GenAPIProvider
+from .providers.openrouter import OpenRouterProvider
 from . import prompts
 
 # Здесь можно легко переключить провайдера, изменив одну строку
 # from .providers.openai import OpenAIProvider
-AIProvider = GenAPIProvider
+# from .providers.gen_api import GenAPIProvider
+AIProvider = OpenRouterProvider
 
 
 class AIClient:
