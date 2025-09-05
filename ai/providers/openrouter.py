@@ -66,6 +66,11 @@ class OpenRouterProvider:
                 raise ValueError("API returned an empty response content.")
 
             if is_json:
+                # Очищаем строку от возможных обрамляющих символов
+                if message_content.startswith("```json"):
+                    message_content = message_content[7:-3].strip()
+                elif message_content.startswith("```"):
+                    message_content = message_content[3:-3].strip()
                 response_data["json"] = json.loads(message_content)
                 response_data["text"] = None
             else:
