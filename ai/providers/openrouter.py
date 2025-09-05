@@ -62,6 +62,9 @@ class OpenRouterProvider:
             response_data = {"usage": usage}
             message_content = completion.choices[0].message.content
 
+            if not message_content:
+                raise ValueError("API returned an empty response content.")
+
             if is_json:
                 response_data["json"] = json.loads(message_content)
                 response_data["text"] = None
