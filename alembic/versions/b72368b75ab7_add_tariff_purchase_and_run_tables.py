@@ -38,6 +38,12 @@ def upgrade() -> None:
         ]
     )
 
+    bind = op.get_bind()
+    if bind.engine.name == 'postgresql':
+        now_func = sa.text('now()')
+    else:
+        now_func = sa.text('CURRENT_TIMESTAMP')
+
     op.create_table('purchases',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -45,7 +51,7 @@ def upgrade() -> None:
     sa.Column('runs_total', sa.Integer(), nullable=False),
     sa.Column('runs_left', sa.Integer(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=now_func, nullable=True),
     sa.ForeignKeyConstraint(['tariff_id'], ['tariffs.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -58,7 +64,7 @@ def upgrade() -> None:
     sa.Column('purchase_id', sa.Integer(), nullable=False),
     sa.Column('resume_id', sa.Integer(), nullable=False),
     sa.Column('vacancy_id', sa.Integer(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=now_func, nullable=True),
     sa.ForeignKeyConstraint(['purchase_id'], ['purchases.id'], ),
     sa.ForeignKeyConstraint(['resume_id'], ['resumes.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),

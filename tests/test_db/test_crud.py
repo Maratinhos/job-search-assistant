@@ -169,3 +169,38 @@ def test_create_utm_track(db_session):
     # 4. Проверяем, что связь с пользователем работает
     assert len(user.utm_sources) == 1
     assert user.utm_sources[0].utm_source == utm_source
+
+
+def test_get_tariffs(db_session):
+    """
+    Тестирует получение всех активных тарифов.
+    Функция get_tariffs должна возвращать все тарифы, кроме бесплатного (ID=1).
+    """
+    # Миграции должны были создать 4 тарифа
+    all_tariffs = crud.get_tariffs(db_session)
+    assert len(all_tariffs) == 3 # Бесплатный тариф не должен возвращаться
+
+    # Убедимся, что бесплатного тарифа нет в списке
+    free_tariff = next((t for t in all_tariffs if t.price == 0), None)
+    assert free_tariff is None
+
+    # Проверим выборочно один из тарифов
+    tariff_399 = next((t for t in all_tariffs if t.price == 399), None)
+    assert tariff_399 is not None
+    assert tariff_399.name == "399 руб"
+    assert tariff_399.runs_count == 10
+    assert tariff_399.is_active is True
+
+
+def test_get_tariff_by_id(db_session):
+    """Тестирует получение тарифа по его ID."""
+    # Миграции должны были создать 4 тарифа
+    # ID=1 это бесплатный тариф
+    tariff = crud.get_tariff_by_id(db_session, 1)
+    assert tariff is not None
+    assert tariff.name == "Бесплатный"
+    assert tariff.price == 0
+
+    # Попробуем получить несуществующий тариф
+    non_existent_tariff = crud.get_tariff_by_id(db_session, 999)
+    assert non_existent_tariff is None
