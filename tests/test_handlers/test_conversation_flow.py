@@ -10,6 +10,9 @@ from db import crud, models
 
 
 @pytest.mark.anyio
+@patch("bot.handlers.vacancy.crud")
+@patch("bot.handlers.resume.crud")
+@patch("bot.handlers.start.crud")
 @patch("bot.handlers.vacancy.show_main_menu", new_callable=AsyncMock)
 @patch("bot.handlers.resume.show_main_menu", new_callable=AsyncMock)
 @patch("bot.handlers.start.get_db")
@@ -21,6 +24,9 @@ async def test_conversation_flow(
     mock_start_get_db,
     mock_resume_show_main_menu,
     mock_vacancy_show_main_menu,
+    mock_start_crud,
+    mock_resume_crud,
+    mock_vacancy_crud,
     db_session,
     update_mock,
     context_mock,
@@ -36,13 +42,26 @@ async def test_conversation_flow(
     mock_resume_get_db.side_effect = db_session_generator
     mock_vacancy_get_db.side_effect = db_session_generator
 
+    # Mock crud methods for all handlers
+    user = MagicMock(id=1, chat_id=12345)
+    resume = MagicMock(id=1)
+    mock_start_crud.get_or_create_user.return_value = user
+    mock_start_crud.get_user_resume.return_value = None  # Start with no resume
+    mock_resume_crud.get_or_create_user.return_value = user
+    mock_resume_crud.get_user_resume.return_value = None
+    mock_resume_crud.get_user_vacancies.return_value = [] # No vacancies yet
+    mock_vacancy_crud.get_or_create_user.return_value = user
+    mock_vacancy_crud.get_user_resume.return_value = resume
+    mock_vacancy_crud.get_active_purchase.return_value = MagicMock(runs_left=10)
+
+
     async def mock_process_document(update, context, db, user_id, text, source, doc_type):
         if doc_type == "resume":
-            crud.create_resume(db, user_id, file_path="test.txt", source=source, title="Test Resume")
-            return True, "Test Resume"
+            mock_resume_crud.create_resume.return_value = MagicMock(id=1, title="Test Resume")
+            return True, mock_resume_crud.create_resume.return_value
         elif doc_type == "vacancy":
-            crud.create_vacancy(db, user_id, file_path="test.txt", source=source, title="Test Vacancy")
-            return True, "Test Vacancy"
+            mock_vacancy_crud.create_vacancy.return_value = MagicMock(id=1, title="Test Vacancy")
+            return True, mock_vacancy_crud.create_vacancy.return_value
         return False, None
 
     with patch("bot.handlers.resume.process_document", new=mock_process_document), \
@@ -52,6 +71,10 @@ async def test_conversation_flow(
         context_mock.args = []  # Убедимся, что тест не передает deeplink аргументы
         state = await start(update_mock, context_mock)
         assert state == AWAITING_RESUME_UPLOAD
+
+        # After start, user has a resume
+        mock_start_crud.get_user_resume.return_value = resume
+        mock_resume_crud.get_user_resume.return_value = resume
 
         # 2. Upload resume -> AWAITING_VACANCY_UPLOAD
         mock_document = MagicMock(spec=Document)
@@ -63,6 +86,9 @@ async def test_conversation_flow(
 
         state = await handle_resume_file(update_mock, context_mock)
         assert state == AWAITING_VACANCY_UPLOAD
+
+        # After resume upload, user has vacancies
+        mock_vacancy_crud.get_user_vacancies.return_value = [MagicMock(id=1)]
 
         # 3. Upload vacancy -> MAIN_MENU
         mock_document.file_name = "vacancy.txt"

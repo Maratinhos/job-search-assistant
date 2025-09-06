@@ -20,7 +20,7 @@ def mock_db_session():
         with patch('db.crud.create_survey_answer', return_value=SurveyAnswer(id=1, user_id=1, survey_id=1, answer="Хорошо")):
             yield db_session
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_start_survey_with_active_survey(mock_db_session):
     """Тест начала опроса при наличии активного опроса."""
     active_survey = Survey(id=1, question="Как дела?", options="Хорошо,Нормально,Плохо", is_active=True)
@@ -43,7 +43,7 @@ async def test_start_survey_with_active_survey(mock_db_session):
         assert context.user_data["active_survey_id"] == 1
         assert result == AWAITING_SURVEY_ANSWER
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_start_survey_no_active_survey(mock_db_session):
     """Тест начала опроса при отсутствии активных опросов."""
     with patch('bot.handlers.survey.get_db', return_value=iter([mock_db_session])), \
@@ -63,7 +63,7 @@ async def test_start_survey_no_active_survey(mock_db_session):
         mock_show_main_menu.assert_called_once()
         assert result == MAIN_MENU
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_handle_survey_answer(mock_db_session):
     """Тест обработки ответа на опрос."""
     with patch('bot.handlers.survey.get_db', return_value=iter([mock_db_session])), \
@@ -88,7 +88,7 @@ async def test_handle_survey_answer(mock_db_session):
         mock_show_main_menu.assert_called_once()
         assert result == MAIN_MENU
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_cancel_survey(mock_db_session):
     """Тест отмены опроса."""
     with patch('bot.handlers.survey.show_main_menu', new_callable=AsyncMock) as mock_show_main_menu:

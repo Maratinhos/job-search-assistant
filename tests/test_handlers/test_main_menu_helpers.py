@@ -33,15 +33,18 @@ async def test_show_main_menu_with_selected_vacancy(mock_keyboards, mock_crud, m
     mock_crud.get_user_vacancies.return_value = mock_vacancies
     mock_crud.get_vacancy_by_id.return_value = mock_selected_vacancy
     mock_crud.get_active_survey.return_value = None
+    mock_crud.get_active_purchase.return_value = None
     mock_keyboards.main_menu_keyboard.return_value = "main_menu_keyboard_markup"
 
     # --- Call ---
     await show_main_menu(update, context)
 
     # --- Assertions ---
+    balance_text = messages.BALANCE_MESSAGE.format(runs_left=0, runs_total=0)
     expected_message = messages.MAIN_MENU_WITH_VACANCY_MESSAGE.format(
         vacancy_title="Vacancy 1",
-        resume_title="My Resume"
+        resume_title="My Resume",
+        balance_info=balance_text
     )
     update.callback_query.edit_message_text.assert_called_once_with(
         expected_message,
@@ -79,13 +82,18 @@ async def test_show_main_menu_no_selected_vacancy(mock_keyboards, mock_crud, moc
     mock_crud.get_user_resume.return_value = mock_resume
     mock_crud.get_user_vacancies.return_value = mock_vacancies
     mock_crud.get_active_survey.return_value = None
+    mock_crud.get_active_purchase.return_value = None
     mock_keyboards.main_menu_keyboard.return_value = "main_menu_keyboard_markup"
 
     # --- Call ---
     await show_main_menu(update, context)
 
     # --- Assertions ---
-    expected_message = messages.MAIN_MENU_MESSAGE.format(resume_title="My Resume")
+    balance_text = messages.BALANCE_MESSAGE.format(runs_left=0, runs_total=0)
+    expected_message = messages.MAIN_MENU_MESSAGE.format(
+        resume_title="My Resume",
+        balance_info=balance_text
+    )
     update.callback_query.edit_message_text.assert_called_once_with(
         expected_message,
         reply_markup="main_menu_keyboard_markup"
@@ -121,13 +129,18 @@ async def test_show_main_menu_no_vacancies(mock_keyboards, mock_crud, mock_get_d
     mock_crud.get_user_resume.return_value = mock_resume
     mock_crud.get_user_vacancies.return_value = []
     mock_crud.get_active_survey.return_value = None
+    mock_crud.get_active_purchase.return_value = None
     mock_keyboards.main_menu_keyboard.return_value = "main_menu_keyboard_markup"
 
     # --- Call ---
     await show_main_menu(update, context)
 
     # --- Assertions ---
-    expected_message = messages.MAIN_MENU_NO_VACANCIES.format(resume_title="My Resume")
+    balance_text = messages.BALANCE_MESSAGE.format(runs_left=0, runs_total=0)
+    expected_message = messages.MAIN_MENU_NO_VACANCIES.format(
+        resume_title="My Resume",
+        balance_info=balance_text
+    )
     update.callback_query.edit_message_text.assert_called_once_with(
         expected_message,
         reply_markup="main_menu_keyboard_markup"

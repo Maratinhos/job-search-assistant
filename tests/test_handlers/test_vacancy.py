@@ -24,7 +24,8 @@ async def test_handle_vacancy_file_success(
     mock_db = MagicMock()
     mock_get_db.return_value = iter([mock_db])
     mock_crud.get_or_create_user.return_value = MagicMock(id=1, chat_id=12345)
-    mock_process_document.return_value = (True, "Senior Python Developer") # Сервис успешен
+    mock_crud.get_active_purchase.return_value = MagicMock(runs_left=10)
+    mock_process_document.return_value = (True, MagicMock(id=99)) # Сервис успешен
 
     mock_document = MagicMock(spec=Document)
     mock_document.file_name = "vacancy.txt"
@@ -57,6 +58,7 @@ async def test_handle_vacancy_file_failure(
     mock_db = MagicMock()
     mock_get_db.return_value = iter([mock_db])
     mock_crud.get_or_create_user.return_value = MagicMock(id=1, chat_id=12345)
+    mock_crud.get_active_purchase.return_value = MagicMock(runs_left=10)
     mock_process_document.return_value = (False, None) # Сервис провалился
 
     mock_document = MagicMock(spec=Document)
@@ -92,7 +94,8 @@ async def test_handle_vacancy_url_success(
     mock_db = MagicMock()
     mock_get_db.return_value = iter([mock_db])
     mock_crud.get_or_create_user.return_value = MagicMock(id=1, chat_id=12345)
-    mock_process_document.return_value = (True, "Scraped Vacancy")
+    mock_crud.get_active_purchase.return_value = MagicMock(runs_left=10)
+    mock_process_document.return_value = (True, MagicMock(id=99))
     update_mock.message.text = "https://hh.ru/vacancy/123"
 
     # --- Call ---
