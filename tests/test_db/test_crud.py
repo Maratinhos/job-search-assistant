@@ -146,3 +146,26 @@ def test_create_analysis_result(db_session):
     assert analysis2.match_analysis == "Match analysis text." # Старое значение сохранилось
     assert analysis2.cover_letter == "Updated cover letter text." # Значение обновилось
     assert analysis2.hr_call_plan == "HR call plan text." # Новое значение добавилось
+
+
+def test_create_utm_track(db_session):
+    """Тестирует создание записи отслеживания UTM-метки."""
+    # 1. Создаем пользователя
+    user = crud.get_or_create_user(db_session, chat_id=111222)
+    utm_source = "test_source"
+
+    # 2. Создаем запись UTM
+    utm_track = crud.create_utm_track(db_session, user_id=user.id, utm_source=utm_source)
+    assert utm_track is not None
+    assert utm_track.user_id == user.id
+    assert utm_track.utm_source == utm_source
+    assert utm_track.id is not None
+
+    # 3. Проверяем, что запись можно получить из БД
+    retrieved_track = db_session.query(models.UTMTrack).filter_by(id=utm_track.id).first()
+    assert retrieved_track is not None
+    assert retrieved_track.utm_source == utm_source
+
+    # 4. Проверяем, что связь с пользователем работает
+    assert len(user.utm_sources) == 1
+    assert user.utm_sources[0].utm_source == utm_source

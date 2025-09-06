@@ -28,6 +28,7 @@ class User(Base):
     vacancies = relationship("Vacancy", back_populates="user", cascade="all, delete-orphan")
     ai_usage_logs = relationship("AIUsageLog", back_populates="user", cascade="all, delete-orphan")
     survey_answers = relationship("SurveyAnswer", back_populates="user", cascade="all, delete-orphan")
+    utm_sources = relationship("UTMTrack", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(id={self.id}, chat_id={self.chat_id})>"
@@ -156,3 +157,19 @@ class SurveyAnswer(Base):
 
     def __repr__(self):
         return f"<SurveyAnswer(id={self.id}, user_id={self.user_id}, survey_id={self.survey_id}, answer='{self.answer}')>"
+
+
+class UTMTrack(Base):
+    """Модель для отслеживания UTM меток."""
+
+    __tablename__ = "utm_track"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    utm_source = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="utm_sources")
+
+    def __repr__(self):
+        return f"<UTMTrack(id={self.id}, user_id={self.user_id}, utm_source='{self.utm_source}')>"

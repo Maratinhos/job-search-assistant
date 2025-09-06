@@ -16,6 +16,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     Точка входа в главный диалог.
     Проверяет состояние пользователя (наличие резюме/вакансий) и направляет его
     в соответствующее состояние конечного автомата (AWAITING_RESUME_UPLOAD, etc.).
+    Также обрабатывает deeplink с UTM-меткой.
     """
     chat_id = update.effective_chat.id
     logger.info(f"Conversation started for user {chat_id}")
@@ -25,6 +26,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     try:
         user = crud.get_or_create_user(db, chat_id=chat_id)
+
+        # Обработка deeplink
+        if context.args:
+            utm_source = context.args[0]
+            logger.info(f"User {chat_id} came from UTM source: {utm_source}")
+            crud.create_utm_track(db, user_id=user.id, utm_source=utm_source)
+
         resume = crud.get_user_resume(db, user_id=user.id)
 
         # 1. Если нет резюме, просим загрузить

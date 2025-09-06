@@ -49,6 +49,7 @@ async def test_conversation_flow(
          patch("bot.handlers.vacancy.process_document", new=mock_process_document):
 
         # 1. /start (no resume) -> AWAITING_RESUME_UPLOAD
+        context_mock.args = []  # Убедимся, что тест не передает deeplink аргументы
         state = await start(update_mock, context_mock)
         assert state == AWAITING_RESUME_UPLOAD
 
