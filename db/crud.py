@@ -147,3 +147,13 @@ def create_survey_answer(db: Session, user_id: int, survey_id: int, answer: str)
     db.commit()
     db.refresh(new_answer)
     return new_answer
+
+
+# UTMTrack functions
+def create_utm_track(db: Session, user_id: int, utm_source: str) -> models.UTMTrack:
+    """Создает запись об источнике UTM."""
+    new_track = models.UTMTrack(user_id=user_id, utm_source=utm_source)
+    db.add(new_track)
+    db.commit()
+    db.refresh(new_track)
+    return new_track

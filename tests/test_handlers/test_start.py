@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch, call, ANY
 
 from bot.handlers.start import start
 from bot.handlers.states import AWAITING_RESUME_UPLOAD, AWAITING_VACANCY_UPLOAD, MAIN_MENU
@@ -100,3 +100,37 @@ async def test_start_with_resume_and_vacancies(mock_get_db, mock_crud, mock_show
     assert context_mock.user_data['selected_vacancy_id'] == 1
     update_mock.message.reply_text.assert_not_called()
     mock_show_main_menu.assert_called_once_with(update_mock, context_mock)
+
+
+@pytest.mark.anyio
+@patch('bot.handlers.start.crud')
+@patch('bot.handlers.start.get_db')
+async def test_start_with_deeplink_arg(mock_get_db, mock_crud, update_mock, context_mock):
+    """
+    Тестирует команду /start с deeplink аргументом (UTM-меткой).
+    """
+    # --- Mocks Setup ---
+    mock_db = MagicMock()
+    mock_user = models.User(id=1, chat_id=12345)
+    mock_crud.get_or_create_user.return_value = mock_user
+    mock_crud.get_user_resume.return_value = None # Для простоты, пусть у пользователя нет резюме
+    mock_get_db.return_value = iter([mock_db])
+    context_mock.args = ["ads_google"] # Эмулируем deeplink ?start=ads_google
+
+    # --- Call ---
+    await start(update_mock, context_mock)
+
+    # --- Assertions ---
+    # Проверяем, что была вызвана функция сохранения UTM-метки
+    mock_crud.create_utm_track.assert_called_once_with(
+        mock_db,
+        user_id=mock_user.id,
+        utm_source="ads_google"
+    )
+
+    # Проверяем, что остальная логика start() продолжает выполняться
+    # (в данном случае, запрос резюме)
+    update_mock.message.reply_text.assert_called_with(
+        messages.ASK_FOR_RESUME,
+        reply_markup=ANY,
+    )
