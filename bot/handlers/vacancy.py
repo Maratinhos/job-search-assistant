@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 async def _process_and_reply(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, source: str) -> int:
     """
     Внутренняя функция для вызова сервиса обработки и отправки ответа пользователю.
+    Здесь же происходит проверка и списание прогонов.
     """
     chat_id = update.effective_chat.id
     message = update.effective_message
@@ -29,7 +30,21 @@ async def _process_and_reply(update: Update, context: ContextTypes.DEFAULT_TYPE,
     db = next(db_session_gen)
     try:
         user = crud.get_or_create_user(db, chat_id=chat_id)
-        success, _ = await process_document(
+        resume = crud.get_user_resume(db, user_id=user.id)
+        if not resume:
+            await message.reply_text(messages.ERROR_NO_RESUME)
+            return AWAITING_VACANCY_UPLOAD # Or some other appropriate state
+
+        # --- Проверка лимитов ---
+        active_purchase = crud.get_active_purchase(db, user_id=user.id)
+        if not active_purchase or active_purchase.runs_left <= 0:
+            # TODO: В будущем здесь будет переход к покупке
+            await message.reply_text(messages.OUT_OF_RUNS)
+            # Пока просто останавливаемся, не показывая меню
+            return AWAITING_VACANCY_UPLOAD
+
+        # --- Обработка вакансии ---
+        success, processed_vacancy = await process_document(
             update=update,
             context=context,
             db=db,
@@ -40,6 +55,10 @@ async def _process_and_reply(update: Update, context: ContextTypes.DEFAULT_TYPE,
         )
 
         if success:
+            # --- Списание прогона ---
+            # Эта функция атомарно проверит, был ли уже прогон, и спишет, если нужно
+            crud.create_run(db, user_id=user.id, resume_id=resume.id, vacancy_id=processed_vacancy.id)
+
             await message.reply_text(messages.VACANCY_UPLOADED_SUCCESS)
             await show_main_menu(update, context)
             return MAIN_MENU

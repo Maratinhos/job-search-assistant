@@ -50,7 +50,8 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if selected_vacancy:
                 message_text = messages.MAIN_MENU_WITH_VACANCY_MESSAGE.format(
                     vacancy_title=selected_vacancy.title,
-                    resume_title=resume_title
+                    resume_title=resume_title,
+                    balance_info=balance_text
                 )
                 keyboard = keyboards.main_menu_keyboard(
                     vacancy_count=len(vacancies),
@@ -63,9 +64,22 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 context.user_data.pop('selected_vacancy_id', None)
                 selected_vacancy_id = None # Обновляем локальную переменную
 
+        active_purchase = crud.get_active_purchase(db, user_id=user.id)
+        if active_purchase:
+            balance_text = messages.BALANCE_MESSAGE.format(
+                runs_left=active_purchase.runs_left,
+                runs_total=active_purchase.runs_total
+            )
+        else:
+            balance_text = messages.BALANCE_MESSAGE.format(runs_left=0, runs_total=0)
+
+
         if not selected_vacancy_id:
             if vacancies:
-                message_text = messages.MAIN_MENU_MESSAGE.format(resume_title=resume_title)
+                message_text = messages.MAIN_MENU_MESSAGE.format(
+                    resume_title=resume_title,
+                    balance_info=balance_text
+                )
                 keyboard = keyboards.main_menu_keyboard(
                     vacancy_count=len(vacancies),
                     has_resume=True,
@@ -73,7 +87,10 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     show_survey_button=show_survey_button
                 )
             else:
-                message_text = messages.MAIN_MENU_NO_VACANCIES.format(resume_title=resume_title)
+                message_text = messages.MAIN_MENU_NO_VACANCIES.format(
+                    resume_title=resume_title,
+                    balance_info=balance_text
+                )
                 # Клавиатура без действий, требующих вакансию
                 keyboard = keyboards.main_menu_keyboard(
                     vacancy_count=0,
