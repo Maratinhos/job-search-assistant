@@ -1,29 +1,45 @@
 import pytest
+import os
 from unittest.mock import MagicMock, AsyncMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from telegram import Update
 from telegram.ext import ContextTypes
+from alembic.config import Config
+from alembic import command
 
 from db.models import Base
 
-TEST_DATABASE_URL = "sqlite:///:memory:"
+# Используем файловую БД для тестов, чтобы избежать проблем с Alembic и in-memory SQLite
+TEST_DATABASE_URL = "sqlite:///./test.db"
 
 
 @pytest.fixture(scope="function")
 def db_session():
     """
     Фикстура pytest для создания новой сессии БД для каждой тестовой функции.
+    Применяет миграции Alembic для создания схемы и наполнения начальными данными.
     """
+    # Удаляем старый файл БД, если он остался от предыдущих запусков
+    if os.path.exists("test.db"):
+        os.remove("test.db")
+
     engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
-    Base.metadata.create_all(bind=engine)
+
+    # Настраиваем и применяем миграции
+    alembic_cfg = Config("alembic.ini")
+    alembic_cfg.set_main_option("sqlalchemy.url", TEST_DATABASE_URL)
+    command.upgrade(alembic_cfg, "head")
+
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = TestingSessionLocal()
     try:
         yield db
     finally:
         db.close()
-        Base.metadata.drop_all(bind=engine)
+        # Удаляем файл БД после тестов
+        if os.path.exists("test.db"):
+            os.remove("test.db")
 
 
 @pytest.fixture
