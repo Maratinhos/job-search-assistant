@@ -39,6 +39,12 @@ def create_main_conv_handler() -> ConversationHandler:
     )
 
 
+from bot.handlers.purchase import (
+    balance_handler,
+    buy_handler,
+    tariff_selection_handler,
+)
+
 def create_application() -> Application:
     """
     Создает и настраивает экземпляр приложения Telegram с вложенными ConversationHandler.
@@ -47,6 +53,12 @@ def create_application() -> Application:
         raise ValueError("Токен TELEGRAM_BOT_TOKEN не найден в .env файле!")
 
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+
+    # Добавляем обработчики для баланса и покупки
+    application.add_handler(balance_handler)
+    application.add_handler(buy_handler)
+    application.add_handler(tariff_selection_handler)
+
     conv_handler = create_main_conv_handler()
     application.add_handler(conv_handler)
 

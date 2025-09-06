@@ -50,3 +50,16 @@ def cancel_keyboard() -> InlineKeyboardMarkup:
     """Генерирует клавиатуру с кнопкой 'Отмена'."""
     buttons = [[InlineKeyboardButton("Отмена", callback_data="cancel_action")]]
     return InlineKeyboardMarkup(buttons)
+
+
+def tariffs_keyboard(tariffs: list) -> InlineKeyboardMarkup:
+    """Создает клавиатуру со списком тарифов."""
+    buttons = []
+    for tariff in tariffs:
+        button = InlineKeyboardButton(
+            text=f"🚀 {tariff.name} - {tariff.runs_count} прогонов",
+            callback_data=f"tariff_{tariff.id}"
+        )
+        buttons.append([button])
+    buttons.append([InlineKeyboardButton("Отмена", callback_data="cancel_action")])
+    return InlineKeyboardMarkup(buttons)

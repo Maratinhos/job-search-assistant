@@ -6,14 +6,105 @@ from . import models
 
 # User functions
 def get_or_create_user(db: Session, chat_id: int) -> models.User:
-    """Получает пользователя по chat_id или создает нового, если он не существует."""
+    """
+    Получает пользователя по chat_id или создает нового.
+    Новому пользователю начисляется бесплатный тариф.
+    """
     user = db.query(models.User).filter(models.User.chat_id == chat_id).first()
     if not user:
         user = models.User(chat_id=chat_id)
         db.add(user)
         db.commit()
         db.refresh(user)
+
+        # Начисляем бесплатный тариф
+        free_tariff = get_tariff_by_id(db, 1)
+        if free_tariff:
+            create_purchase(db, user_id=user.id, tariff_id=free_tariff.id)
+
     return user
+
+
+# Tariff functions
+def get_tariff_by_id(db: Session, tariff_id: int) -> Optional[models.Tariff]:
+    """Получает тариф по ID."""
+    return db.query(models.Tariff).filter(models.Tariff.id == tariff_id).first()
+
+
+def get_tariffs(db: Session) -> list[models.Tariff]:
+    """Возвращает список всех активных тарифов, кроме бесплатного."""
+    return db.query(models.Tariff).filter(models.Tariff.is_active == True, models.Tariff.id != 1).all()
+
+
+# Purchase functions
+def create_purchase(db: Session, user_id: int, tariff_id: int) -> models.Purchase:
+    """Создает новую покупку для пользователя и деактивирует старые."""
+    # Деактивируем все предыдущие активные покупки пользователя
+    db.query(models.Purchase).filter(
+        models.Purchase.user_id == user_id,
+        models.Purchase.is_active == True
+    ).update({"is_active": False})
+
+    tariff = get_tariff_by_id(db, tariff_id)
+    if not tariff:
+        raise ValueError("Tariff not found")
+
+    new_purchase = models.Purchase(
+        user_id=user_id,
+        tariff_id=tariff_id,
+        runs_total=tariff.runs_count,
+        runs_left=tariff.runs_count,
+        is_active=True
+    )
+    db.add(new_purchase)
+    db.commit()
+    db.refresh(new_purchase)
+    return new_purchase
+
+
+def get_active_purchase(db: Session, user_id: int) -> Optional[models.Purchase]:
+    """Получает активную покупку пользователя."""
+    return db.query(models.Purchase).filter(
+        models.Purchase.user_id == user_id,
+        models.Purchase.is_active == True
+    ).first()
+
+
+# Run functions
+def create_run(db: Session, user_id: int, resume_id: int, vacancy_id: int) -> Optional[models.Run]:
+    """
+    Создает запись о прогоне и списывает один прогон у пользователя.
+    Возвращает Run, если списание успешно, иначе None.
+    """
+    active_purchase = get_active_purchase(db, user_id)
+    if not active_purchase or active_purchase.runs_left <= 0:
+        return None  # Нет доступных прогонов
+
+    # Проверяем, был ли уже такой прогон
+    existing_run = get_run_by_resume_and_vacancy(db, resume_id, vacancy_id)
+    if existing_run:
+        return existing_run # Прогон уже был, ничего не списываем
+
+    # Списываем прогон
+    active_purchase.runs_left -= 1
+
+    new_run = models.Run(
+        user_id=user_id,
+        purchase_id=active_purchase.id,
+        resume_id=resume_id,
+        vacancy_id=vacancy_id
+    )
+    db.add(new_run)
+    db.commit()
+    db.refresh(new_run)
+    db.refresh(active_purchase)
+
+    return new_run
+
+
+def get_run_by_resume_and_vacancy(db: Session, resume_id: int, vacancy_id: int) -> Optional[models.Run]:
+    """Проверяет, был ли уже прогон для данной пары резюме и вакансии."""
+    return db.query(models.Run).filter_by(resume_id=resume_id, vacancy_id=vacancy_id).first()
 
 
 # AI Usage Log functions
