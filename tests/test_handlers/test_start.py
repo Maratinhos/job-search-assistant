@@ -54,7 +54,7 @@ async def test_start_with_resume_no_vacancies(mock_get_db, mock_crud, mock_keybo
     mock_crud.get_or_create_user.return_value = mock_user
     mock_crud.get_user_resume.return_value = mock_resume
     mock_crud.get_user_vacancies.return_value = []  # No vacancies
-    mock_crud.get_active_purchase.return_value = None
+    mock_crud.get_user_balance.return_value = MagicMock(balance=10)
     mock_get_db.return_value = iter([mock_db])
     mock_keyboards.cancel_keyboard.return_value = "cancel_keyboard_markup"
 
@@ -64,7 +64,7 @@ async def test_start_with_resume_no_vacancies(mock_get_db, mock_crud, mock_keybo
     # --- Assertions ---
     assert result == AWAITING_VACANCY_UPLOAD
 
-    balance_text = messages.BALANCE_MESSAGE.format(runs_left=0, runs_total=0)
+    balance_text = messages.BALANCE_MESSAGE.format(balance=10)
     expected_main_menu_message = messages.MAIN_MENU_NO_VACANCIES.format(
         resume_title="My Resume Title",
         balance_info=balance_text

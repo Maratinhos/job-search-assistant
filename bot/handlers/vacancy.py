@@ -35,12 +35,10 @@ async def _process_and_reply(update: Update, context: ContextTypes.DEFAULT_TYPE,
             await message.reply_text(messages.ERROR_NO_RESUME)
             return AWAITING_VACANCY_UPLOAD # Or some other appropriate state
 
-        # --- Проверка лимитов ---
-        active_purchase = crud.get_active_purchase(db, user_id=user.id)
-        if not active_purchase or active_purchase.runs_left <= 0:
-            # TODO: В будущем здесь будет переход к покупке
+        # --- Проверка баланса ---
+        balance = crud.get_user_balance(db, user_id=user.id)
+        if not balance or balance.balance < 1:
             await message.reply_text(messages.OUT_OF_RUNS)
-            # Пока просто останавливаемся, не показывая меню
             return AWAITING_VACANCY_UPLOAD
 
         # --- Обработка вакансии ---
@@ -55,10 +53,9 @@ async def _process_and_reply(update: Update, context: ContextTypes.DEFAULT_TYPE,
         )
 
         if success:
-            # --- Списание прогона ---
-            # Эта функция атомарно проверит, был ли уже прогон, и спишет, если нужно
-            crud.create_run(db, user_id=user.id, resume_id=resume.id, vacancy_id=processed_vacancy.id)
-
+            # --- Списание балла ---
+            crud.update_user_balance(db, user_id=user.id, amount=-1, description="Загрузка вакансии")
+            await message.reply_text(f"С вашего баланса списан 1 балл. Текущий баланс: {balance.balance} баллов.")
             await message.reply_text(messages.VACANCY_UPLOADED_SUCCESS)
             await show_main_menu(update, context)
             return MAIN_MENU

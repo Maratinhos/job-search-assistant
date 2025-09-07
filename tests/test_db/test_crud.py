@@ -171,36 +171,44 @@ def test_create_utm_track(db_session):
     assert user.utm_sources[0].utm_source == utm_source
 
 
-def test_get_tariffs(db_session):
-    """
-    Тестирует получение всех активных тарифов.
-    Функция get_tariffs должна возвращать все тарифы, кроме бесплатного (ID=1).
-    """
-    # Миграции должны были создать 4 тарифа
-    all_tariffs = crud.get_tariffs(db_session)
-    assert len(all_tariffs) == 3 # Бесплатный тариф не должен возвращаться
+def test_get_or_create_balance(db_session):
+    """Тестирует получение или создание баланса пользователя."""
+    user = models.User(chat_id=111)
+    db_session.add(user)
+    db_session.commit()
 
-    # Убедимся, что бесплатного тарифа нет в списке
-    free_tariff = next((t for t in all_tariffs if t.price == 0), None)
-    assert free_tariff is None
+    # 1. Создание нового баланса
+    balance = crud.get_or_create_balance(db_session, user_id=user.id, initial_balance=10)
+    assert balance is not None
+    assert balance.user_id == user.id
+    assert balance.balance == 10
 
-    # Проверим выборочно один из тарифов
-    tariff_399 = next((t for t in all_tariffs if t.price == 399), None)
-    assert tariff_399 is not None
-    assert tariff_399.name == "399 руб"
-    assert tariff_399.runs_count == 10
-    assert tariff_399.is_active is True
+    # 2. Получение существующего баланса
+    balance2 = crud.get_or_create_balance(db_session, user_id=user.id, initial_balance=100)
+    assert balance2.id == balance.id
+    assert balance2.balance == 10  # Баланс не должен меняться
 
+def test_update_user_balance(db_session):
+    """Тестирует обновление баланса пользователя."""
+    user = models.User(chat_id=222)
+    db_session.add(user)
+    db_session.commit()
+    crud.get_or_create_balance(db_session, user_id=user.id, initial_balance=0)
 
-def test_get_tariff_by_id(db_session):
-    """Тестирует получение тарифа по его ID."""
-    # Миграции должны были создать 4 тарифа
-    # ID=1 это бесплатный тариф
-    tariff = crud.get_tariff_by_id(db_session, 1)
-    assert tariff is not None
-    assert tariff.name == "Бесплатный"
-    assert tariff.price == 0
+    # 1. Пополнение баланса
+    crud.update_user_balance(db_session, user_id=user.id, amount=10, description="Пополнение")
+    balance = crud.get_user_balance(db_session, user_id=user.id)
+    assert balance.balance == 10
 
-    # Попробуем получить несуществующий тариф
-    non_existent_tariff = crud.get_tariff_by_id(db_session, 999)
-    assert non_existent_tariff is None
+    # 2. Списание с баланса
+    crud.update_user_balance(db_session, user_id=user.id, amount=-3, description="Списание")
+    balance = crud.get_user_balance(db_session, user_id=user.id)
+    assert balance.balance == 7
+
+    # 3. Проверка транзакций
+    transactions = db_session.query(models.Transaction).filter_by(user_id=user.id).all()
+    assert len(transactions) == 2 # deposit, withdrawal
+    assert transactions[0].type == "deposit"
+    assert transactions[0].amount == 10
+    assert transactions[1].type == "withdrawal"
+    assert transactions[1].amount == 3

@@ -8,7 +8,7 @@ from . import models
 def get_or_create_user(db: Session, chat_id: int) -> models.User:
     """
     Получает пользователя по chat_id или создает нового.
-    Новому пользователю начисляется бесплатный тариф.
+    Новому пользователю начисляется приветственный баланс.
     """
     user = db.query(models.User).filter(models.User.chat_id == chat_id).first()
     if not user:
@@ -16,95 +16,83 @@ def get_or_create_user(db: Session, chat_id: int) -> models.User:
         db.add(user)
         db.commit()
         db.refresh(user)
-
-        # Начисляем бесплатный тариф
-        free_tariff = get_tariff_by_id(db, 1)
-        if free_tariff:
-            create_purchase(db, user_id=user.id, tariff_id=free_tariff.id)
-
+        # Начисляем приветственные баллы
+        get_or_create_balance(db, user_id=user.id, initial_balance=6)
     return user
 
 
-# Tariff functions
-def get_tariff_by_id(db: Session, tariff_id: int) -> Optional[models.Tariff]:
-    """Получает тариф по ID."""
-    return db.query(models.Tariff).filter(models.Tariff.id == tariff_id).first()
+# Balance and Transaction functions
+def get_or_create_balance(db: Session, user_id: int, initial_balance: int = 0) -> models.UserBalance:
+    """Получает или создает баланс для пользователя."""
+    balance = db.query(models.UserBalance).filter_by(user_id=user_id).first()
+    if not balance:
+        balance = models.UserBalance(user_id=user_id, balance=initial_balance)
+        db.add(balance)
+        db.commit()
+        db.refresh(balance)
+        # Создаем транзакцию о начислении приветственных баллов
+        if initial_balance > 0:
+            create_transaction(
+                db,
+                user_id=user_id,
+                type="deposit",
+                amount=initial_balance,
+                description="Приветственный бонус",
+            )
+    return balance
 
 
-def get_tariffs(db: Session) -> list[models.Tariff]:
-    """Возвращает список всех активных тарифов, кроме бесплатного."""
-    return db.query(models.Tariff).filter(models.Tariff.is_active == True, models.Tariff.id != 1).all()
+def get_user_balance(db: Session, user_id: int) -> Optional[models.UserBalance]:
+    """Получает баланс пользователя."""
+    return db.query(models.UserBalance).filter_by(user_id=user_id).first()
 
 
-# Purchase functions
-def create_purchase(db: Session, user_id: int, tariff_id: int) -> models.Purchase:
-    """Создает новую покупку для пользователя и деактивирует старые."""
-    # Деактивируем все предыдущие активные покупки пользователя
-    db.query(models.Purchase).filter(
-        models.Purchase.user_id == user_id,
-        models.Purchase.is_active == True
-    ).update({"is_active": False})
-
-    tariff = get_tariff_by_id(db, tariff_id)
-    if not tariff:
-        raise ValueError("Tariff not found")
-
-    new_purchase = models.Purchase(
-        user_id=user_id,
-        tariff_id=tariff_id,
-        runs_total=tariff.runs_count,
-        runs_left=tariff.runs_count,
-        is_active=True
-    )
-    db.add(new_purchase)
-    db.commit()
-    db.refresh(new_purchase)
-    return new_purchase
-
-
-def get_active_purchase(db: Session, user_id: int) -> Optional[models.Purchase]:
-    """Получает активную покупку пользователя."""
-    return db.query(models.Purchase).filter(
-        models.Purchase.user_id == user_id,
-        models.Purchase.is_active == True
-    ).first()
-
-
-# Run functions
-def create_run(db: Session, user_id: int, resume_id: int, vacancy_id: int) -> Optional[models.Run]:
+def update_user_balance(db: Session, user_id: int, amount: int, description: str, cost: Optional[float] = None) -> models.UserBalance:
     """
-    Создает запись о прогоне и списывает один прогон у пользователя.
-    Возвращает Run, если списание успешно, иначе None.
+    Обновляет баланс пользователя и создает транзакцию.
+    amount может быть положительным (пополнение) или отрицательным (списание).
     """
-    active_purchase = get_active_purchase(db, user_id)
-    if not active_purchase or active_purchase.runs_left <= 0:
-        return None  # Нет доступных прогонов
+    balance = get_or_create_balance(db, user_id)
+    balance.balance += amount
 
-    # Проверяем, был ли уже такой прогон
-    existing_run = get_run_by_resume_and_vacancy(db, resume_id, vacancy_id)
-    if existing_run:
-        return existing_run # Прогон уже был, ничего не списываем
+    transaction_type = "deposit" if amount > 0 else "withdrawal"
 
-    # Списываем прогон
-    active_purchase.runs_left -= 1
-
-    new_run = models.Run(
+    create_transaction(
+        db,
         user_id=user_id,
-        purchase_id=active_purchase.id,
-        resume_id=resume_id,
-        vacancy_id=vacancy_id
+        type=transaction_type,
+        amount=abs(amount),
+        description=description,
+        cost=cost,
     )
-    db.add(new_run)
+
     db.commit()
-    db.refresh(new_run)
-    db.refresh(active_purchase)
-
-    return new_run
+    db.refresh(balance)
+    return balance
 
 
-def get_run_by_resume_and_vacancy(db: Session, resume_id: int, vacancy_id: int) -> Optional[models.Run]:
-    """Проверяет, был ли уже прогон для данной пары резюме и вакансии."""
-    return db.query(models.Run).filter_by(resume_id=resume_id, vacancy_id=vacancy_id).first()
+def create_transaction(
+    db: Session,
+    user_id: int,
+    type: str,
+    amount: int,
+    description: str,
+    cost: Optional[float] = None,
+    external_id: Optional[str] = None,
+) -> models.Transaction:
+    """Создает новую транзакцию."""
+    transaction = models.Transaction(
+        user_id=user_id,
+        type=type,
+        amount=amount,
+        description=description,
+        cost=cost,
+        external_id=external_id,
+    )
+    db.add(transaction)
+    db.commit()
+    db.refresh(transaction)
+    return transaction
 
 
 # AI Usage Log functions

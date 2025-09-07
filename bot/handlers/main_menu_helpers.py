@@ -45,14 +45,10 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         resume_title = resume.title or "ваше резюме"
 
-        active_purchase = crud.get_active_purchase(db, user_id=user.id)
-        if active_purchase:
-            balance_text = messages.BALANCE_MESSAGE.format(
-                runs_left=active_purchase.runs_left,
-                runs_total=active_purchase.runs_total
-            )
-        else:
-            balance_text = messages.BALANCE_MESSAGE.format(runs_left=0, runs_total=0)
+        balance = crud.get_user_balance(db, user_id=user.id)
+        balance_text = messages.BALANCE_MESSAGE.format(
+            balance=balance.balance if balance else 0
+        )
 
         if selected_vacancy_id:
             selected_vacancy = crud.get_vacancy_by_id(db, vacancy_id=selected_vacancy_id)
