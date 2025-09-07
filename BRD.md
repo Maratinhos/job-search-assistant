@@ -25,22 +25,25 @@ The Job Search Assistant is a Telegram bot designed to help job seekers streamli
 
 *   User interaction via a Telegram bot interface.
 *   User registration and profile management (implicitly through `chat_id`).
-*   Uploading and storing of user resumes.
-*   Saving and storing of job vacancies from user input.
+*   Uploading and storing of user resumes, including parsing from `hh.ru` URLs.
+*   Saving and storing of job vacancies from user input, including parsing from `hh.ru` URLs.
 *   AI-powered analysis to compare a single resume against a single vacancy.
 *   Generation of a tailored cover letter.
 *   Generation of a preparation plan for an HR interview screening call.
 *   Generation of a preparation plan for a technical interview.
-*   Logging of AI usage and associated costs for administrative purposes.
 *   A survey mechanism to gather user feedback.
+*   A points-based billing system for monetizing AI features.
+*   Tracking of user acquisition channels via UTM sources.
+*   Logging of AI usage and associated costs for administrative purposes.
 
 #### Out of Scope:
 
-*   Direct integration with job boards for automatic vacancy searching (scraper for `hh.ru` exists but is not integrated into the main bot flow).
+*   Direct integration with job boards for automatic vacancy searching beyond `hh.ru`.
 *   Management of multiple resumes or vacancies at the same time for a single analysis.
 *   User accounts with login/password (authentication is based on Telegram `chat_id`).
 *   A web-based interface.
 *   Real-time job alerts or notifications.
+*   A live, integrated payment provider (payment flow is currently emulated).
 
 ---
 
@@ -60,38 +63,57 @@ These users are typically comfortable with technology and are looking for tools 
 
 ### 3.1 User Onboarding and Management
 
-*   **FR-001:** The system shall allow a new user to start interacting with the bot, triggering an onboarding sequence.
-*   **FR-002:** The system shall uniquely identify each user by their Telegram `chat_id`.
-*   **FR-003:** The system shall guide the user through the main menu options after the initial interaction.
+*   **FR-001:** A new user can start interacting with the bot, which triggers an onboarding sequence.
+*   **FR-002:** The system uniquely identifies each user by their Telegram `chat_id`.
+*   **FR-003:** If the user starts the bot via a referral link with a UTM source, the system shall record this source.
+*   **FR-004:** The system guides the user through the main menu options after the initial interaction.
 
 ### 3.2 Resume Management
 
-*   **FR-004:** The system shall allow users to upload their resume as a file.
-*   **FR-005:** The system shall store the user's resume for future use in analyses.
-*   **FR-006:** The system shall allow a user to update or replace their existing resume.
+*   **FR-005:** The system shall allow users to upload their resume as a file or provide a URL from `hh.ru`.
+*   **FR-006:** The system shall parse the resume from the provided file or URL and store its content.
+*   **FR-007:** The system shall allow a user to update or replace their existing resume.
 
 ### 3.3 Vacancy Management
 
-*   **FR-007:** The system shall allow users to provide a job vacancy description.
-*   **FR-008:** The system shall store the provided vacancy for use in an analysis.
+*   **FR-008:** The system shall allow users to provide a job vacancy description as text or a URL from `hh.ru`.
+*   **FR-009:** The system shall parse the vacancy from the provided text or URL and store its content.
 
 ### 3.4 AI-Powered Job Application Assistance
 
-*   **FR-009:** The system shall allow a user to select one of their stored resumes and one of their stored vacancies to initiate an analysis.
-*   **FR-010:** The system shall perform an AI-driven analysis of the resume against the vacancy to determine suitability.
-*   **FR-011:** The system shall generate a tailored cover letter based on the resume and vacancy.
-*   **FR-012:** The system shall generate a preparation plan for a potential HR screening call.
-*   **FR-013:** The system shall generate a preparation plan for a potential technical interview.
-*   **FR-014:** The system shall present the results of the analysis (cover letter, interview plans) to the user.
+*   **FR-010:** The system shall allow a user to select one of their stored resumes and one of their stored vacancies to initiate an analysis.
+*   **FR-011:** The system shall perform an AI-driven analysis of the resume against the vacancy to determine suitability.
+*   **FR-012:** The system shall generate a tailored cover letter based on the resume and vacancy.
+*   **FR-013:** The system shall generate a preparation plan for a potential HR screening call.
+*   **FR-014:** The system shall generate a preparation plan for a potential technical interview.
+*   **FR-015:** The system shall present the results of the analysis (cover letter, interview plans) to the user.
 
 ### 3.5 User Feedback
 
-*   **FR-015:** The system shall be capable of presenting active surveys to users.
-*   **FR-016:** The system shall record user responses to surveys.
+*   **FR-016:** The system shall be capable of presenting active surveys to users.
+*   **FR-017:** The system shall record user responses to surveys.
+
+### 3.6 Monetization and Billing
+
+*   **FR-018:** The system shall allow a user to check their current points balance.
+*   **FR-019:** The system shall allow a user to view available point packages for purchase.
+*   **FR-020:** The system shall allow a user to select and purchase a point package (emulated).
+*   **FR-021:** The system shall update the user's balance after a successful purchase.
 
 ---
 
-## 4.0 Non-Functional Requirements
+## 4.0 Monetization
+
+The service is monetized through a points-based system. Users spend points to access advanced AI-powered features. This allows for flexible usage and aligns costs with consumption.
+
+*   **Points System:** Core AI actions, such as generating a cover letter or a full analysis, deduct a predetermined number of points from the user's balance.
+*   **Checking Balance:** Users can check their current points balance at any time using the `/balance` command.
+*   **Purchasing Points:** Users can purchase additional points using the `/buy` command. This command displays available packages of points at different price tiers.
+*   **Payment Emulation:** The current implementation does not feature a live payment gateway. The purchase flow is emulated, meaning that upon selecting a package, the user's balance is credited with the points immediately without actual payment processing. This is intended for development and testing purposes.
+
+---
+
+## 5.0 Non-Functional Requirements
 
 *   **NFR-001 (Usability):** The bot shall have a clear, intuitive, and conversational interface, with guided menus and clear instructions.
 *   **NFR-002 (Performance):** AI analysis and content generation should be completed within a reasonable timeframe (e.g., under 60 seconds) to maintain user engagement.
@@ -100,7 +122,7 @@ These users are typically comfortable with technology and are looking for tools 
 
 ---
 
-## 5.0 Data Models
+## 6.0 Data Models
 
 The system's functionality is supported by the following key data entities:
 
@@ -110,10 +132,13 @@ The system's functionality is supported by the following key data entities:
 *   **AnalysisResult:** Stores the output of the AI analysis, linking a specific resume to a specific vacancy. This includes the generated cover letter and interview plans.
 *   **AIUsageLog:** Tracks AI API calls, token usage, and cost for monitoring and administrative purposes.
 *   **Survey & SurveyAnswer:** Manages surveys and the collection of user feedback.
+*   **UserBalance:** Stores the current points balance for each user.
+*   **Transaction:** Records all transactions, including point purchases (deposits) and feature usage (withdrawals).
+*   **UTMTrack:** Logs the UTM source for users who start the bot via a referral link, for marketing and analytics purposes.
 
 ---
 
-## 6.0 Assumptions and Constraints
+## 7.0 Assumptions and Constraints
 
 *   **Assumption:** Users have a Telegram account and are familiar with using Telegram bots.
 *   **Assumption:** Users will provide resumes and vacancy descriptions in a format and language that the AI model can process effectively.
