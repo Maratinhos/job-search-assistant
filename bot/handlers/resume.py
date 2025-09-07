@@ -29,6 +29,17 @@ async def _process_and_reply(update: Update, context: ContextTypes.DEFAULT_TYPE,
     db = next(db_session_gen)
     try:
         user = crud.get_or_create_user(db, chat_id=chat_id)
+
+        # Проверка баланса
+        balance = crud.get_user_balance(db, user_id=user.id)
+        if not balance or balance.balance < 1:
+            await message.reply_text(messages.OUT_OF_RUNS)
+            # TODO: Предложить пополнить баланс
+            return MAIN_MENU # или другое состояние
+
+        # Списываем балл
+        crud.update_user_balance(db, user_id=user.id, amount=-1, description="Загрузка резюме")
+
         success, _ = await process_document(
             update=update,
             context=context,
@@ -40,6 +51,7 @@ async def _process_and_reply(update: Update, context: ContextTypes.DEFAULT_TYPE,
         )
 
         if success:
+            await message.reply_text(f"С вашего баланса списан 1 балл. Текущий баланс: {balance.balance} баллов.")
             await message.reply_text(messages.RESUME_UPLOADED_SUCCESS)
 
             # После успешной загрузки резюме, проверяем наличие вакансий

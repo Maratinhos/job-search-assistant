@@ -29,6 +29,8 @@ class User(Base):
     ai_usage_logs = relationship("AIUsageLog", back_populates="user", cascade="all, delete-orphan")
     survey_answers = relationship("SurveyAnswer", back_populates="user", cascade="all, delete-orphan")
     utm_sources = relationship("UTMTrack", back_populates="user", cascade="all, delete-orphan")
+    balance = relationship("UserBalance", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    transactions = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(id={self.id}, chat_id={self.chat_id})>"
@@ -175,69 +177,38 @@ class UTMTrack(Base):
         return f"<UTMTrack(id={self.id}, user_id={self.user_id}, utm_source='{self.utm_source}')>"
 
 
-class Tariff(Base):
-    """Модель тарифа."""
+class UserBalance(Base):
+    """Модель баланса пользователя."""
 
-    __tablename__ = "tariffs"
+    __tablename__ = "user_balances"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), nullable=False)
-    price = Column(Integer, nullable=False)
-    runs_count = Column(Integer, nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    balance = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    purchases = relationship("Purchase", back_populates="tariff")
+    user = relationship("User", back_populates="balance")
 
     def __repr__(self):
-        return f"<Tariff(id={self.id}, name='{self.name}', price={self.price})>"
+        return f"<UserBalance(user_id={self.user_id}, balance={self.balance})>"
 
 
-class Purchase(Base):
-    """Модель покупки."""
+class Transaction(Base):
+    """Модель транзакции."""
 
-    __tablename__ = "purchases"
+    __tablename__ = "transactions"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    tariff_id = Column(Integer, ForeignKey("tariffs.id"), nullable=False)
-    runs_total = Column(Integer, nullable=False)
-    runs_left = Column(Integer, nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    type = Column(String(50), nullable=False)  # 'deposit' or 'withdrawal'
+    amount = Column(Integer, nullable=False)
+    description = Column(String(255), nullable=True)
+    external_id = Column(String(255), nullable=True)
+    cost = Column(Float, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=func.now())
 
-    user = relationship("User", back_populates="purchases")
-    tariff = relationship("Tariff", back_populates="purchases")
-    runs = relationship("Run", back_populates="purchase")
-
-    def __repr__(self):
-        return f"<Purchase(id={self.id}, user_id={self.user_id}, runs_left={self.runs_left})>"
-
-
-class Run(Base):
-    """Модель одного прогона анализа."""
-
-    __tablename__ = "runs"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    purchase_id = Column(Integer, ForeignKey("purchases.id"), nullable=False)
-    resume_id = Column(Integer, ForeignKey("resumes.id"), nullable=False)
-    vacancy_id = Column(Integer, ForeignKey("vacancies.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    user = relationship("User", back_populates="runs")
-    purchase = relationship("Purchase", back_populates="runs")
-    resume = relationship("Resume")
-    vacancy = relationship("Vacancy")
-
-    __table_args__ = (
-        UniqueConstraint("resume_id", "vacancy_id", name="uq_run_resume_vacancy"),
-    )
+    user = relationship("User", back_populates="transactions")
 
     def __repr__(self):
-        return f"<Run(id={self.id}, user_id={self.user_id}, resume_id={self.resume_id}, vacancy_id={self.vacancy_id})>"
-
-
-# Add relationships to User model
-User.purchases = relationship("Purchase", back_populates="user", cascade="all, delete-orphan")
-User.runs = relationship("Run", back_populates="user", cascade="all, delete-orphan")
+        return f"<Transaction(user_id={self.user_id}, type='{self.type}', amount={self.amount})>"

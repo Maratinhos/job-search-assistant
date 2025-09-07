@@ -31,6 +31,7 @@ async def test_perform_analysis_new_analysis_success(
     mock_crud.get_user_resume.return_value = MagicMock(id=resume_id, file_path="resume.txt")
     mock_crud.get_vacancy_by_id.return_value = MagicMock(id=vacancy_id, file_path="vacancy.txt")
     mock_crud.get_analysis_result.return_value = None  # No cached result
+    mock_crud.get_user_balance.return_value = MagicMock(balance=10)
 
     mock_ai_client = MagicMock()
     mock_analysis_data = {

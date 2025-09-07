@@ -8,6 +8,7 @@ from bot.handlers.resume import (
 )
 from bot.handlers.states import AWAITING_RESUME_UPLOAD, MAIN_MENU
 from bot import messages
+from db import crud
 
 # Фикстуры update_mock и context_mock из conftest.py используются неявно
 
@@ -24,6 +25,7 @@ async def test_handle_resume_file_success(
     mock_db = MagicMock()
     mock_get_db.return_value = iter([mock_db])
     mock_crud.get_or_create_user.return_value = MagicMock(id=1, chat_id=12345)
+    mock_crud.get_user_balance.return_value = MagicMock(balance=10)
     mock_process_document.return_value = (True, "Senior Python Developer") # Сервис успешен
 
     mock_document = MagicMock(spec=Document)
@@ -58,6 +60,7 @@ async def test_handle_resume_file_failure(
     mock_db = MagicMock()
     mock_get_db.return_value = iter([mock_db])
     mock_crud.get_or_create_user.return_value = MagicMock(id=1, chat_id=12345)
+    mock_crud.get_user_balance.return_value = MagicMock(balance=10)
     mock_process_document.return_value = (False, None) # Сервис провалился
 
     mock_document = MagicMock(spec=Document)
@@ -93,6 +96,7 @@ async def test_handle_resume_url_success(
     mock_db = MagicMock()
     mock_get_db.return_value = iter([mock_db])
     mock_crud.get_or_create_user.return_value = MagicMock(id=1, chat_id=12345)
+    mock_crud.get_user_balance.return_value = MagicMock(balance=10)
     mock_process_document.return_value = (True, "Scraped Developer")
     update_mock.message.text = "https://hh.ru/resume/123"
 
@@ -117,3 +121,28 @@ async def test_handle_invalid_resume_input(update_mock, context_mock):
     update_mock.message.reply_text.assert_called_once()
     assert messages.RESUME_INVALID_FORMAT in update_mock.message.reply_text.call_args.args[0]
     assert result == AWAITING_RESUME_UPLOAD
+
+@pytest.mark.asyncio
+@patch('bot.handlers.resume.show_main_menu', new_callable=AsyncMock)
+@patch('bot.handlers.resume.process_document', new_callable=AsyncMock)
+@patch('bot.handlers.resume.crud')
+@patch('bot.handlers.resume.get_db')
+async def test_handle_resume_file_deducts_point(mock_get_db, mock_crud, mock_process_document, mock_show_main_menu, update_mock, context_mock):
+    """Тестирует списание балла при загрузке резюме."""
+    mock_db = MagicMock()
+    mock_get_db.return_value = iter([mock_db])
+    mock_user = MagicMock(id=1, chat_id=12345)
+    mock_crud.get_or_create_user.return_value = mock_user
+    mock_crud.get_user_balance.return_value = MagicMock(balance=5)
+    mock_process_document.return_value = (True, "Test Resume")
+
+    mock_document = MagicMock(spec=Document)
+    mock_document.file_name = "resume.txt"
+    mock_file = AsyncMock(spec=File)
+    mock_file.download_as_bytearray.return_value = b"Resume text"
+    mock_document.get_file.return_value = mock_file
+    update_mock.message.document = mock_document
+
+    await handle_resume_file(update_mock, context_mock)
+
+    mock_crud.update_user_balance.assert_called_once_with(mock_db, user_id=mock_user.id, amount=-1, description="Загрузка резюме")

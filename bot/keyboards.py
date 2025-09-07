@@ -52,13 +52,15 @@ def cancel_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(buttons)
 
 
-def tariffs_keyboard(tariffs: list) -> InlineKeyboardMarkup:
-    """Создает клавиатуру со списком тарифов."""
+def points_packages_keyboard(packages: dict) -> InlineKeyboardMarkup:
+    """Создает клавиатуру со списком пакетов баллов."""
     buttons = []
-    for tariff in tariffs:
+    for key, package in packages.items():
+        points = package["points"]
+        price = package["price"]
         button = InlineKeyboardButton(
-            text=f"🚀 {tariff.name} - {tariff.runs_count} прогонов",
-            callback_data=f"tariff_{tariff.id}"
+            text=f"{points} баллов - {price} руб.",
+            callback_data=f"buy_{key.split('_')[1]}"
         )
         buttons.append([button])
     buttons.append([InlineKeyboardButton("Отмена", callback_data="cancel_action")])

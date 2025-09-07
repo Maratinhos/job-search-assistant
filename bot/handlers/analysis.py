@@ -53,6 +53,12 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 logger.info(f"Найден кэшированный результат для action='{action}', user_id={user.id}")
 
         if not response_text:
+            # --- Проверка баланса перед вызовом AI ---
+            balance = crud.get_user_balance(db, user_id=user.id)
+            if not balance or balance.balance < 1:
+                await query.message.reply_text(messages.OUT_OF_RUNS)
+                return MAIN_MENU
+
             # Если кэша нет или поле пустое, запускаем полный анализ
             await query.message.reply_text(text=messages.ANALYSIS_IN_PROGRESS)
 
@@ -94,6 +100,10 @@ async def _perform_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             # Получаем текст для текущего действия
             response_text = read_text_from_file(getattr(analysis_result, db_field))
 
+
+            # --- Списание балла ---
+            crud.update_user_balance(db, user_id=user.id, amount=-1, description=f"Анализ: {action}")
+            await query.message.reply_text(f"С вашего баланса списан 1 балл. Текущий баланс: {balance.balance} баллов.")
 
             # Логирование использования AI
             usage = response.get("usage", {})

@@ -50,9 +50,10 @@ async def test_conversation_flow(
     mock_resume_crud.get_or_create_user.return_value = user
     mock_resume_crud.get_user_resume.return_value = None
     mock_resume_crud.get_user_vacancies.return_value = [] # No vacancies yet
+    mock_resume_crud.get_user_balance.return_value = MagicMock(balance=10)
     mock_vacancy_crud.get_or_create_user.return_value = user
     mock_vacancy_crud.get_user_resume.return_value = resume
-    mock_vacancy_crud.get_active_purchase.return_value = MagicMock(runs_left=10)
+    mock_vacancy_crud.get_user_balance.return_value = MagicMock(balance=10)
 
 
     async def mock_process_document(update, context, db, user_id, text, source, doc_type):

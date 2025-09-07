@@ -39,10 +39,10 @@ def create_main_conv_handler() -> ConversationHandler:
     )
 
 
-from bot.handlers.purchase import (
+from bot.handlers.billing import (
     balance_handler,
     buy_handler,
-    tariff_selection_handler,
+    package_selection_handler,
 )
 
 def create_application() -> Application:
@@ -57,7 +57,7 @@ def create_application() -> Application:
     # Добавляем обработчики для баланса и покупки
     application.add_handler(balance_handler)
     application.add_handler(buy_handler)
-    application.add_handler(tariff_selection_handler)
+    application.add_handler(package_selection_handler)
 
     conv_handler = create_main_conv_handler()
     application.add_handler(conv_handler)

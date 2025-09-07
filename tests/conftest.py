@@ -10,36 +10,25 @@ from alembic import command
 
 from db.models import Base
 
-# Используем файловую БД для тестов, чтобы избежать проблем с Alembic и in-memory SQLite
-TEST_DATABASE_URL = "sqlite:///./test.db"
+# Используем in-memory SQLite для тестов
+TEST_DATABASE_URL = "sqlite:///:memory:"
 
 
 @pytest.fixture(scope="function")
 def db_session():
     """
     Фикстура pytest для создания новой сессии БД для каждой тестовой функции.
-    Применяет миграции Alembic для создания схемы и наполнения начальными данными.
+    Создает все таблицы перед тестом и удаляет их после.
     """
-    # Удаляем старый файл БД, если он остался от предыдущих запусков
-    if os.path.exists("test.db"):
-        os.remove("test.db")
-
     engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
-
-    # Настраиваем и применяем миграции
-    alembic_cfg = Config("alembic.ini")
-    alembic_cfg.set_main_option("sqlalchemy.url", TEST_DATABASE_URL)
-    command.upgrade(alembic_cfg, "head")
-
+    Base.metadata.create_all(bind=engine)
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = TestingSessionLocal()
     try:
         yield db
     finally:
         db.close()
-        # Удаляем файл БД после тестов
-        if os.path.exists("test.db"):
-            os.remove("test.db")
+        Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture
